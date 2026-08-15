@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% block title %}Pre-Book a Slot — SmartPark{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <div class="card form-card p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <i class="bi bi-calendar-plus-fill text-primary" style="font-size:3rem"></i>
+                    <h3 class="fw-bold mt-2">Advance Slot Pre-Booking</h3>
+                    <p class="text-muted">Reserve your parking slot before you arrive</p>
+                </div>
+
+                <!-- Step 1: Details -->
+                <div id="step-1">
+                    <h6 class="fw-bold text-primary mb-3">
+                        <span class="badge bg-primary me-2">1</span>Enter Your Details
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Vehicle Number Plate *</label>
+                            <input type="text" class="form-control text-uppercase" id="book-plate"
+                                   placeholder="e.g. UP32AB1234" style="letter-spacing:2px">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Booking Date *</label>
+                            <input type="date" class="form-control" id="book-date">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Start Time *</label>
+                            <input type="time" class="form-control" id="book-start">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">End Time *</label>
+                            <input type="time" class="form-control" id="book-end">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Slot Type</label>
+                            <select class="form-select" id="book-type">
+                                <option value="Compact">Compact</option>
+                                <option value="SUV">SUV</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Preferred Zone</label>
+                            <select class="form-select" id="book-zone">
+                                <option value="">Any Zone</option>
+                                <option value="Ground Floor">Ground Floor</option>
+                                <option value="Level 1">Level 1</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary btn-lg w-100 mt-4" onclick="checkAndBook()">
+                        <i class="bi bi-search me-2"></i>Check Availability & Book
+                    </button>
+                </div>
+
+                <!-- Result -->
+                <div id="booking-result" class="mt-4"></div>
+            </div>
+
+            <!-- Booking History -->
+            <div class="card mt-4 shadow-sm border-0">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-clock-history me-2 text-primary"></i>Recent Bookings
+                    </h5>
+                </div>
+                <div class="card-body px-4" id="booking-history">
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-primary"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Set min date to today
+document.getElementById('book-date').min = new Date().toISOString().split('T')[0];
+
+async function checkAndBook() {
+    const plate = document.getElementById('book-plate').value.toUpperCase().trim();
+    const date = document.getElementById('book-date').value;
+    const start = document.getElementById('book-start').value;
+    const end = document.getElementById('book-end').value;
+    const type = document.getElementById('book-type').value;
+    const zone = document.getElementById('book-zone').value;
+
+    if (!plate || !date || !start || !end) {
+        alert('Please fill all required fields');
+        return;
+    }
+
+    const resultDiv = document.getElementById('booking-result');
+    resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Checking availability...</p></div>';
+
+    try {
+        const res = await fetch('/api/book/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                plate_number: plate,
+                booking_date: date,
+                start_time: start,
+                end_time: end,
+                slot_type: type,
+                zone_name: zone
+            })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success border-0 shadow-sm">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-check-circle-fill fs-4 me-2"></i>
+                        <strong>Booking Confirmed!</strong>
+                    </div>
+                    <table class="table table-sm mb-0">
+                        <tr><td class="text-muted">Booking ID</td><td><strong>#${data.booking_id}</strong></td></tr>
+                        <tr><td class="text-muted">Slot</td><td><strong>${data.slot_id} (${data.zone})</strong></td></tr>
+                        <tr><td class="text-muted">Vehicle</td><td><strong>${data.plate_number}</strong></td></tr>
+                        <tr><td class="text-muted">Date</td><td><strong>${data.booking_date}</strong></td></tr>
+                        <tr><td class="text-muted">Time</td><td><strong>${data.start_time} – ${data.end_time}</strong></td></tr>
+                        <tr><td class="text-muted">Status</td><td><span class="badge bg-success">${data.status}</span></td></tr>
+                    </table>
+                </div>`;
+            loadBookingHistory();
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger border-0">
+                    <i class="bi bi-x-circle-fill me-2"></i>${data.error}
+                </div>`;
+        }
+    } catch(e) {
+        resultDiv.innerHTML = '<div class="alert alert-danger">Connection error. Please try again.</div>';
+    }
+}
+
+async function loadBookingHistory() {
+    try {
+        const res = await fetch('/api/bookings/');
+        const bookings = await res.json();
+        const div = document.getElementById('booking-history');
+
+        if (!bookings.length) {
+            div.innerHTML = '<p class="text-muted text-center py-3">No bookings yet</p>';
+            return;
+        }
+
+        div.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th><th>Vehicle</th><th>Slot</th>
+                            <th>Date</th><th>Time</th><th>Status</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${bookings.slice(0,10).map(b => `
+                        <tr>
+                            <td>#${b.id}</td>
+                            <td>${b.vehicle}</td>
+                            <td>${b.slot}</td>
+                            <td>${b.booking_date}</td>
+                            <td>${b.start_time}–${b.end_time}</td>
+                            <td><span class="badge bg-${b.status === 'CONFIRMED' ? 'success' : b.status === 'CANCELLED' ? 'danger' : b.status === 'ACTIVE' ? 'primary' : 'secondary'}">${b.status}</span></td>
+                            <td>
+                                ${b.status === 'CONFIRMED' ?
+                                    `<button class="btn btn-sm btn-outline-danger" onclick="cancelBooking(${b.id})">Cancel</button>` :
+                                    '—'}
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    } catch(e) {
+        document.getElementById('booking-history').innerHTML = '<p class="text-danger">Failed to load bookings</p>';
+    }
+}
+
+async function cancelBooking(id) {
+    if (!confirm('Cancel this booking?')) return;
+    const res = await fetch(`/api/bookings/${id}/cancel/`, {method: 'POST'});
+    const data = await res.json();
+    if (data.success) {
+        alert('Booking cancelled successfully');
+        loadBookingHistory();
+    }
+}
+
+loadBookingHistory();
+</script>
+{% endblock %}

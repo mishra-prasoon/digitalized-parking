@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Parking Slots — SmartPark{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">
+            <span class="live-dot"></span>Live Slot Status
+        </h2>
+        <button class="btn btn-outline-primary" onclick="loadSlots()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card shadow-sm border-0 p-3 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Zone</label>
+                <select class="form-select" id="filter-zone">
+                    <option value="">All Zones</option>
+                    <option value="Ground Floor">Ground Floor</option>
+                    <option value="Level 1">Level 1</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Slot Type</label>
+                <select class="form-select" id="filter-type">
+                    <option value="">All Types</option>
+                    <option value="Compact">Compact</option>
+                    <option value="SUV">SUV</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Status</label>
+                <select class="form-select" id="filter-status">
+                    <option value="">All Status</option>
+                    <option value="available">Available</option>
+                    <option value="occupied">Occupied</option>
+                    <option value="booked">Pre-Booked</option>
+                    <option value="maintenance">Maintenance</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100" onclick="loadSlots()">
+                    <i class="bi bi-funnel me-1"></i>Apply Filter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="d-flex gap-3 flex-wrap mb-4">
+        <span><span class="badge badge-available px-3 py-2">Available</span></span>
+        <span><span class="badge badge-occupied px-3 py-2">Occupied</span></span>
+        <span><span class="badge badge-booked px-3 py-2">Pre-Booked</span></span>
+        <span><span class="badge badge-maintenance px-3 py-2">Maintenance</span></span>
+    </div>
+
+    <!-- Slots Grid -->
+    <div class="row g-3" id="slots-grid">
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2 text-muted">Loading slots...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadSlots() {
+    const zone = document.getElementById('filter-zone').value;
+    const type = document.getElementById('filter-type').value;
+    const status = document.getElementById('filter-status').value;
+
+    let url = '/api/slots/?';
+    if (zone) url += `zone=${encodeURIComponent(zone)}&`;
+    if (type) url += `slot_type=${encodeURIComponent(type)}&`;
+    if (status) url += `status=${encodeURIComponent(status)}&`;
+
+    const grid = document.getElementById('slots-grid');
+    grid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>';
+
+    fetch(url)
+        .then(res => res.json())
+        .then(slots => {
+            if (!slots.length) {
+                grid.innerHTML = '<div class="col-12 text-center py-5"><i class="bi bi-inbox fs-1 text-muted"></i><p class="text-muted mt-2">No slots found</p></div>';
+                return;
+            }
+
+            grid.innerHTML = slots.map(slot => {
+                const statusColor = {
+                    'available': 'success',
+                    'occupied': 'danger',
+                    'booked': 'warning',
+                    'maintenance': 'secondary'
+                }[slot.status] || 'secondary';
+
+                const statusIcon = {
+                    'available': 'check-circle-fill',
+                    'occupied': 'x-circle-fill',
+                    'booked': 'calendar-check-fill',
+                    'maintenance': 'tools'
+                }[slot.status] || 'circle';
+
+                return `
+                <div class="col-md-4 col-lg-3">
+                    <div class="card slot-card slot-${slot.status} p-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h4 class="fw-bold mb-0">${slot.slot_id}</h4>
+                                <small class="text-muted">${slot.zone_name}</small>
+                            </div>
+                            <span class="badge badge-${slot.status} px-2 py-1">
+                                <i class="bi bi-${statusIcon} me-1"></i>${slot.status}
+                            </span>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between">
+                            <small><i class="bi bi-car-front me-1"></i>${slot.slot_type}</small>
+                            <small class="text-${statusColor} fw-semibold">
+                                ${slot.status === 'available' ? '✓ Free' : slot.status === 'occupied' ? '✗ Full' : slot.status === 'booked' ? '⏰ Reserved' : '🔧 Maintenance'}
+                            </small>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        })
+        .catch(() => {
+            grid.innerHTML = '<div class="col-12"><div class="alert alert-danger">Failed to load slots</div></div>';
+        });
+}
+
+loadSlots();
+setInterval(loadSlots, 15000);
+</script>
+{% endblock %}

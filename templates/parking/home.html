@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}SmartPark — Digitalized Parking Solution{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="hero-section">
+    <div class="container text-center">
+        <h1><i class="bi bi-car-front-fill me-3"></i>SmartPark</h1>
+        <p class="lead mt-3 mb-4">
+            Fully Automated Parking with ANPR & Advance Slot Pre-Booking
+        </p>
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <a href="/slots/" class="btn btn-light btn-lg px-4">
+                <i class="bi bi-grid me-2"></i>View Slots
+            </a>
+            <a href="/book/" class="btn btn-outline-light btn-lg px-4">
+                <i class="bi bi-calendar-plus me-2"></i>Pre-Book a Slot
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Live Stats -->
+<section class="container my-5">
+    <div class="row g-4" id="stats-row">
+        <div class="col-md-3">
+            <div class="card stat-card text-white" style="background: linear-gradient(135deg,#1565C0,#1976D2)">
+                <div class="card-body d-flex justify-content-between align-items-center p-4">
+                    <div>
+                        <div class="small text-uppercase fw-bold opacity-75">Total Slots</div>
+                        <div class="fs-1 fw-bold" id="total-slots">—</div>
+                    </div>
+                    <i class="bi bi-grid-fill stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card text-white" style="background: linear-gradient(135deg,#28a745,#20c997)">
+                <div class="card-body d-flex justify-content-between align-items-center p-4">
+                    <div>
+                        <div class="small text-uppercase fw-bold opacity-75">Available</div>
+                        <div class="fs-1 fw-bold" id="available-slots">—</div>
+                    </div>
+                    <i class="bi bi-check-circle-fill stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card text-white" style="background: linear-gradient(135deg,#dc3545,#c82333)">
+                <div class="card-body d-flex justify-content-between align-items-center p-4">
+                    <div>
+                        <div class="small text-uppercase fw-bold opacity-75">Occupied</div>
+                        <div class="fs-1 fw-bold" id="occupied-slots">—</div>
+                    </div>
+                    <i class="bi bi-x-circle-fill stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card text-white" style="background: linear-gradient(135deg,#ffc107,#e0a800)">
+                <div class="card-body d-flex justify-content-between align-items-center p-4">
+                    <div>
+                        <div class="small text-uppercase fw-bold opacity-75 text-dark">Pre-Booked</div>
+                        <div class="fs-1 fw-bold text-dark" id="booked-slots">—</div>
+                    </div>
+                    <i class="bi bi-calendar-check-fill stat-icon text-dark"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="container my-5">
+    <h2 class="text-center fw-bold mb-4">How It Works</h2>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 text-center p-4">
+                <i class="bi bi-camera-fill text-primary" style="font-size:3rem"></i>
+                <h5 class="mt-3 fw-bold">ANPR at Entry Gate</h5>
+                <p class="text-muted">Camera reads your number plate automatically. No manual entry needed. System assigns the best available slot instantly.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 text-center p-4">
+                <i class="bi bi-calendar-plus-fill text-success" style="font-size:3rem"></i>
+                <h5 class="mt-3 fw-bold">Advance Pre-Booking</h5>
+                <p class="text-muted">Reserve your parking slot in advance from anywhere. Your slot is guaranteed when you arrive — no waiting, no searching.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 text-center p-4">
+                <i class="bi bi-credit-card-fill text-warning" style="font-size:3rem"></i>
+                <h5 class="mt-3 fw-bold">Digital Payment</h5>
+                <p class="text-muted">Pay parking fees digitally at exit via UPI, card or net banking. Barrier opens automatically after payment confirmation.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Quick Entry/Exit Test Panel -->
+<section class="container my-5">
+    <div class="row g-4">
+        <!-- Entry -->
+        <div class="col-md-6">
+            <div class="card form-card p-4">
+                <h5 class="fw-bold text-primary mb-3">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Vehicle Entry
+                </h5>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Number Plate</label>
+                    <input type="text" class="form-control form-control-lg text-uppercase"
+                           id="entry-plate" placeholder="e.g. UP32AB1234"
+                           style="letter-spacing:2px">
+                </div>
+                <button class="btn btn-primary btn-lg w-100" onclick="processEntry()">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Process Entry
+                </button>
+                <div id="entry-result" class="mt-3"></div>
+            </div>
+        </div>
+
+        <!-- Exit -->
+        <div class="col-md-6">
+            <div class="card form-card p-4">
+                <h5 class="fw-bold text-danger mb-3">
+                    <i class="bi bi-box-arrow-right me-2"></i>Vehicle Exit
+                </h5>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Number Plate</label>
+                    <input type="text" class="form-control form-control-lg text-uppercase"
+                           id="exit-plate" placeholder="e.g. UP32AB1234"
+                           style="letter-spacing:2px">
+                </div>
+                <button class="btn btn-danger btn-lg w-100" onclick="processExit()">
+                    <i class="bi bi-box-arrow-right me-2"></i>Process Exit
+                </button>
+                <div id="exit-result" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load stats on page load
+async function loadStats() {
+    try {
+        const [slotsRes, activeRes] = await Promise.all([
+            fetch('/api/slots/'),
+            fetch('/api/active/')
+        ]);
+        const slots = await slotsRes.json();
+        const active = await activeRes.json();
+
+        const total = slots.length;
+        const occupied = slots.filter(s => s.status === 'occupied').length;
+        const booked = slots.filter(s => s.status === 'booked').length;
+        const available = slots.filter(s => s.status === 'available').length;
+
+        document.getElementById('total-slots').textContent = total;
+        document.getElementById('available-slots').textContent = available;
+        document.getElementById('occupied-slots').textContent = occupied;
+        document.getElementById('booked-slots').textContent = booked;
+    } catch(e) {
+        console.error('Error loading stats:', e);
+    }
+}
+
+// Process entry
+async function processEntry() {
+    const plate = document.getElementById('entry-plate').value.toUpperCase().trim();
+    if (!plate) { alert('Please enter a plate number'); return; }
+
+    const resultDiv = document.getElementById('entry-result');
+    resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+
+    try {
+        const res = await fetch('/api/entry/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({plate_number: plate})
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <strong>${data.message}</strong><br>
+                    <small>Transaction ID: ${data.transaction_id} | Entry: ${new Date(data.entry_time).toLocaleTimeString()}</small>
+                </div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>${data.error}</div>`;
+        }
+        loadStats();
+    } catch(e) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">Connection error</div>`;
+    }
+}
+
+// Process exit
+async function processExit() {
+    const plate = document.getElementById('exit-plate').value.toUpperCase().trim();
+    if (!plate) { alert('Please enter a plate number'); return; }
+
+    const resultDiv = document.getElementById('exit-result');
+    resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-danger"></div></div>';
+
+    try {
+        const res = await fetch('/api/exit/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({plate_number: plate})
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <strong>${data.message}</strong><br>
+                    <small>Duration: ${data.duration_hours} hr(s) | Fee: ${data.total_fee}</small>
+                </div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>${data.error}</div>`;
+        }
+        loadStats();
+    } catch(e) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">Connection error</div>`;
+    }
+}
+
+// Auto refresh stats every 30 seconds
+loadStats();
+setInterval(loadStats, 30000);
+</script>
+{% endblock %}

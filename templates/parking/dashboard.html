@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard — SmartPark{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h3 class="fw-bold mb-1">
+                    <i class="bi bi-speedometer2 me-2"></i>Admin Dashboard
+                </h3>
+                <p class="mb-0 opacity-75">
+                    <span class="live-dot"></span>Live Parking Overview
+                </p>
+            </div>
+            <button class="btn btn-light" onclick="loadAll()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row g-3 mb-4" id="dashboard-stats">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card text-white h-100" style="background:linear-gradient(135deg,#1565C0,#1976D2)">
+                <div class="card-body text-center p-3">
+                    <div class="small text-uppercase opacity-75">Total Slots</div>
+                    <div class="fs-2 fw-bold" id="d-total">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card text-white h-100" style="background:linear-gradient(135deg,#28a745,#20c997)">
+                <div class="card-body text-center p-3">
+                    <div class="small text-uppercase opacity-75">Available</div>
+                    <div class="fs-2 fw-bold" id="d-available">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card text-white h-100" style="background:linear-gradient(135deg,#dc3545,#c82333)">
+                <div class="card-body text-center p-3">
+                    <div class="small text-uppercase opacity-75">Occupied</div>
+                    <div class="fs-2 fw-bold" id="d-occupied">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card text-white h-100" style="background:linear-gradient(135deg,#6f42c1,#5a2d91)">
+                <div class="card-body text-center p-3">
+                    <div class="small text-uppercase opacity-75">Currently Parked</div>
+                    <div class="fs-2 fw-bold" id="d-parked">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Live Slot Grid -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-grid-fill text-primary me-2"></i>Live Slot Grid
+                    </h5>
+                </div>
+                <div class="card-body px-4" id="live-grid">
+                    <div class="text-center py-3"><div class="spinner-border text-primary"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Transactions -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-car-front-fill text-danger me-2"></i>Currently Parked Vehicles
+                    </h5>
+                </div>
+                <div class="card-body px-4" id="active-transactions">
+                    <div class="text-center py-3"><div class="spinner-border text-danger"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction Log -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-list-ul text-success me-2"></i>Transaction Log
+                    </h5>
+                    <span class="badge bg-secondary" id="trans-count">Loading...</span>
+                </div>
+                <div class="card-body px-4" id="transaction-log">
+                    <div class="text-center py-3"><div class="spinner-border text-success"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadAll() {
+    await Promise.all([loadStats(), loadGrid(), loadActiveTransactions(), loadTransactionLog()]);
+}
+
+async function loadStats() {
+    const [slotsRes, activeRes] = await Promise.all([
+        fetch('/api/slots/'),
+        fetch('/api/active/')
+    ]);
+    const slots = await slotsRes.json();
+    const active = await activeRes.json();
+
+    document.getElementById('d-total').textContent = slots.length;
+    document.getElementById('d-available').textContent = slots.filter(s => s.status === 'available').length;
+    document.getElementById('d-occupied').textContent = slots.filter(s => s.status === 'occupied').length;
+    document.getElementById('d-parked').textContent = active.currently_parked;
+}
+
+async function loadGrid() {
+    const res = await fetch('/api/slots/');
+    const slots = await res.json();
+    const div = document.getElementById('live-grid');
+
+    div.innerHTML = `<div class="row g-2">
+        ${slots.map(s => {
+            const color = {available:'success', occupied:'danger', booked:'warning', maintenance:'secondary'}[s.status];
+            const icon = {available:'check-circle-fill', occupied:'x-circle-fill', booked:'calendar-check', maintenance:'tools'}[s.status];
+            return `
+            <div class="col-4">
+                <div class="card border-${color} text-center p-2 h-100">
+                    <div class="fw-bold fs-5">${s.slot_id}</div>
+                    <small class="text-muted">${s.zone_name}</small>
+                    <div class="mt-1">
+                        <span class="badge bg-${color}">
+                            <i class="bi bi-${icon} me-1"></i>${s.status}
+                        </span>
+                    </div>
+                    <small class="text-muted mt-1">${s.slot_type}</small>
+                </div>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+async function loadActiveTransactions() {
+    const res = await fetch('/api/active/');
+    const data = await res.json();
+    const div = document.getElementById('active-transactions');
+
+    if (!data.transactions.length) {
+        div.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-inbox fs-2"></i><p class="mt-2">No vehicles currently parked</p></div>';
+        return;
+    }
+
+    div.innerHTML = data.transactions.map(t => `
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+            <div>
+                <div class="fw-bold">${t.vehicle}</div>
+                <small class="text-muted">Slot: ${t.slot} | Entry: ${new Date(t.entry_time).toLocaleTimeString()}</small>
+            </div>
+            <span class="badge bg-danger">Parked</span>
+        </div>`).join('');
+}
+
+async function loadTransactionLog() {
+    const res = await fetch('/api/list/');
+    const transactions = await res.json();
+    const div = document.getElementById('transaction-log');
+
+    document.getElementById('trans-count').textContent = `${transactions.length} records`;
+
+    if (!transactions.length) {
+        div.innerHTML = '<p class="text-muted text-center py-3">No transactions yet</p>';
+        return;
+    }
+
+    div.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th><th>Vehicle</th><th>Slot</th>
+                        <th>Entry</th><th>Exit</th><th>Fee</th><th>Payment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${transactions.slice(0,20).map(t => `
+                    <tr>
+                        <td>#${t.id}</td>
+                        <td><strong>${t.vehicle}</strong></td>
+                        <td>${t.slot}</td>
+                        <td>${new Date(t.entry_time).toLocaleString()}</td>
+                        <td>${t.exit_time ? new Date(t.exit_time).toLocaleString() : '<span class="badge bg-warning text-dark">Still Parked</span>'}</td>
+                        <td>${t.total_fee > 0 ? '₹'+t.total_fee : '—'}</td>
+                        <td><span class="badge bg-${t.payment_status === 'PAID' ? 'success' : t.payment_status === 'FAILED' ? 'danger' : 'warning text-dark'}">${t.payment_status}</span></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+loadAll();
+setInterval(loadAll, 15000);
+</script>
+{% endblock %}
