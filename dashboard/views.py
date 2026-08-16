@@ -11,3 +11,6 @@ def book_view(request):
 
 def dashboard_view(request):
     return render(request, 'parking/dashboard.html')
+
+def anpr_demo(request):
+    return render(request, 'parking/anpr_demo.html')
