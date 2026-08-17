@@ -114,5 +114,5 @@ SIMPLE_JWT = {
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Razorpay (we'll add real keys later)
-RAZORPAY_KEY_ID = 'your_key_id'
-RAZORPAY_KEY_SECRET = 'your_key_secret'
+RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET')

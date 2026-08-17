@@ -222,11 +222,16 @@ async function processExit() {
 
         if (data.success) {
             resultDiv.innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="bi bi-check-circle-fill me-2"></i>
-                    <strong>${data.message}</strong><br>
-                    <small>Duration: ${data.duration_hours} hr(s) | Fee: ${data.total_fee}</small>
-                </div>`;
+            <div class="alert alert-warning">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <strong>${data.message}</strong><br>
+                <small>Duration: ${data.duration_hours} hr(s) | Fee: ${data.total_fee_display}</small>
+                <div class="mt-3">
+                    <a href="${data.payment_url}" class="btn btn-primary w-100">
+                        <i class="bi bi-credit-card me-2"></i>Pay ₹${data.total_fee} Now
+                    </a>
+                </div>
+            </div>`;
         } else {
             resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>${data.error}</div>`;
         }

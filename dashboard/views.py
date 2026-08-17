@@ -14,3 +14,6 @@ def dashboard_view(request):
 
 def anpr_demo(request):
     return render(request, 'parking/anpr_demo.html')
+
+def payment_view(request):
+    return render(request, 'parking/payment.html')

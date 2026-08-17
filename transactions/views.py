@@ -131,15 +131,17 @@ def vehicle_exit(request):
     trans.save()
 
     return Response({
-        'success': True,
-        'message': f'Vehicle {plate_number} exit processed',
-        'transaction_id': trans.id,
-        'slot_id': trans.slot.slot_id,
-        'entry_time': trans.entry_time,
-        'exit_time': exit_time,
-        'duration_hours': duration_hours,
-        'total_fee': f'₹{total_fee}',
-        'payment_status': 'PENDING'
+    'success': True,
+    'message': f'Vehicle {plate_number} exit processed',
+    'transaction_id': trans.id,
+    'slot_id': trans.slot.slot_id,
+    'entry_time': trans.entry_time,
+    'exit_time': exit_time,
+    'duration_hours': duration_hours,
+    'total_fee': total_fee,
+    'total_fee_display': f'₹{total_fee}',
+    'payment_status': 'PENDING',
+    'payment_url': f'/payment/?transaction_id={trans.id}&vehicle={plate_number}&slot={trans.slot.slot_id}&fee={total_fee}&duration={duration_hours}'
     })
 
 
