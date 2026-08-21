@@ -1,0 +1,141 @@
+{% extends 'user/base.html' %}
+{% block title %}Pay Parking Fee — SmartPark{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-5">
+            <div class="card p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <i class="bi bi-credit-card-fill text-primary" style="font-size:3rem"></i>
+                    <h3 class="fw-bold mt-2">Pay Parking Fee</h3>
+                    <p class="text-muted">Complete payment to open exit barrier</p>
+                </div>
+
+                <div class="bg-light rounded p-4 mb-4">
+                    <h6 class="fw-bold text-muted mb-3">Transaction Summary</h6>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Vehicle</span>
+                        <strong id="p-vehicle">—</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Slot</span>
+                        <strong id="p-slot">—</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Duration</span>
+                        <strong id="p-duration">—</strong>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-bold fs-5">Total Fee</span>
+                        <strong class="fs-4 text-primary" id="p-amount">—</strong>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg w-100 mb-3"
+                        id="pay-btn" onclick="initiatePayment()">
+                    <i class="bi bi-credit-card me-2"></i>Pay Now via Razorpay
+                </button>
+
+                <div class="text-center">
+                    <small class="text-muted">
+                        <i class="bi bi-shield-check text-success me-1"></i>
+                        Secured by Razorpay
+                    </small>
+                </div>
+
+                <div id="pay-result" class="mt-4"></div>
+            </div>
+
+            <div class="alert alert-info mt-3 border-0">
+                <strong><i class="bi bi-info-circle me-1"></i>Test Mode</strong><br>
+                <small>Card: <strong>4111 1111 1111 1111</strong> | UPI: <strong>success@razorpay</strong></small>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const params = new URLSearchParams(window.location.search);
+const transactionId = params.get('transaction_id');
+const vehicle = params.get('vehicle');
+const slot = params.get('slot');
+const fee = params.get('fee');
+const duration = params.get('duration');
+
+document.getElementById('p-vehicle').textContent = vehicle || '—';
+document.getElementById('p-slot').textContent = slot || '—';
+document.getElementById('p-duration').textContent = duration ? duration + ' hour(s)' : '—';
+document.getElementById('p-amount').textContent = fee ? '₹' + fee : '—';
+
+async function initiatePayment() {
+    const btn = document.getElementById('pay-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Creating order...';
+
+    try {
+        const res = await fetch('/api/payment/create-order/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({transaction_id: transactionId})
+        });
+        const order = await res.json();
+        if (!order.success) throw new Error(order.error);
+
+        const options = {
+            key: order.key_id,
+            amount: order.amount,
+            currency: 'INR',
+            name: 'SmartPark',
+            description: `Parking — Slot ${slot}`,
+            order_id: order.order_id,
+            handler: async function(response) {
+                const vRes = await fetch('/api/payment/verify-payment/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_signature: response.razorpay_signature,
+                        transaction_id: transactionId
+                    })
+                });
+                const vData = await vRes.json();
+                if (vData.success) {
+                    document.getElementById('pay-result').innerHTML = `
+                        <div class="alert alert-success text-center">
+                            <i class="bi bi-check-circle-fill fs-1 text-success d-block mb-2"></i>
+                            <h5 class="fw-bold">Payment Successful!</h5>
+                            <p class="mb-1">Amount: <strong>₹${fee}</strong></p>
+                            <p class="mb-3">Payment ID: <small>${response.razorpay_payment_id}</small></p>
+                            <div class="p-2 bg-success bg-opacity-10 rounded mb-3">
+                                <i class="bi bi-door-open me-2 text-success"></i>
+                                <strong class="text-success">Exit Barrier — OPEN ✓</strong>
+                            </div>
+                            <a href="/" class="btn btn-success w-100">Back to Home</a>
+                        </div>`;
+                    document.getElementById('pay-btn').style.display = 'none';
+                }
+            },
+            theme: { color: '#1565C0' },
+            modal: {
+                ondismiss: function() {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-credit-card me-2"></i>Pay Now via Razorpay';
+                }
+            }
+        };
+        new Razorpay(options).open();
+    } catch(e) {
+        document.getElementById('pay-result').innerHTML =
+            `<div class="alert alert-danger">${e.message}</div>`;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-credit-card me-2"></i>Pay Now via Razorpay';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends 'user/base.html' %}
+{% block title %}SmartPark — Smart Parking Solution{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section style="background:linear-gradient(135deg,#1565C0,#0D47A1,#1B5E20);color:white;padding:80px 0">
+    <div class="container text-center">
+        <h1 class="fw-bold" style="font-size:3rem">
+            <i class="bi bi-car-front-fill me-3"></i>SmartPark
+        </h1>
+        <p class="lead mt-3 mb-4 opacity-75">
+            Fully Automated Parking with ANPR & Advance Slot Pre-Booking
+        </p>
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <a href="/slots/" class="btn btn-light btn-lg px-4 fw-bold">
+                <i class="bi bi-grid me-2"></i>View Available Slots
+            </a>
+            {% if request.session.user_id %}
+            <a href="/book/" class="btn btn-outline-light btn-lg px-4">
+                <i class="bi bi-calendar-plus me-2"></i>Pre-Book a Slot
+            </a>
+            {% else %}
+            <a href="/register/" class="btn btn-outline-light btn-lg px-4">
+                <i class="bi bi-person-plus me-2"></i>Register Free
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Live Stats -->
+<section class="container my-5">
+    <div class="row g-4">
+        <div class="col-6 col-md-3">
+            <div class="card p-4 text-center h-100" style="background:linear-gradient(135deg,#1565C0,#1976D2);color:white">
+                <i class="bi bi-grid-fill mb-2" style="font-size:2rem"></i>
+                <div class="fs-1 fw-bold" id="stat-total">—</div>
+                <div class="small opacity-75 text-uppercase">Total Slots</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card p-4 text-center h-100" style="background:linear-gradient(135deg,#2e7d32,#43a047);color:white">
+                <i class="bi bi-check-circle-fill mb-2" style="font-size:2rem"></i>
+                <div class="fs-1 fw-bold" id="stat-available">—</div>
+                <div class="small opacity-75 text-uppercase">Available</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card p-4 text-center h-100" style="background:linear-gradient(135deg,#c62828,#e53935);color:white">
+                <i class="bi bi-x-circle-fill mb-2" style="font-size:2rem"></i>
+                <div class="fs-1 fw-bold" id="stat-occupied">—</div>
+                <div class="small opacity-75 text-uppercase">Occupied</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card p-4 text-center h-100" style="background:linear-gradient(135deg,#f57f17,#fb8c00);color:white">
+                <i class="bi bi-calendar-check-fill mb-2" style="font-size:2rem"></i>
+                <div class="fs-1 fw-bold" id="stat-booked">—</div>
+                <div class="small opacity-75 text-uppercase">Pre-Booked</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it works -->
+<section class="container my-5">
+    <h2 class="fw-bold text-center mb-4">How It Works</h2>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card p-4 text-center h-100">
+                <div style="font-size:3rem" class="text-primary mb-3">📱</div>
+                <h5 class="fw-bold">1. Register & Login</h5>
+                <p class="text-muted">Create your free account. Link your vehicle number plate to your profile for seamless ANPR recognition.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-4 text-center h-100">
+                <div style="font-size:3rem" class="text-success mb-3">📅</div>
+                <h5 class="fw-bold">2. Search & Pre-Book</h5>
+                <p class="text-muted">Browse available slots by date, time and zone. Reserve your slot in advance — it will be waiting when you arrive.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-4 text-center h-100">
+                <div style="font-size:3rem" class="text-warning mb-3">📷</div>
+                <h5 class="fw-bold">3. ANPR Entry & Exit</h5>
+                <p class="text-muted">Camera reads your plate automatically at entry and exit. Pay digitally — barrier opens instantly after confirmation.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+{% if not request.session.user_id %}
+<section class="container my-5">
+    <div class="card p-5 text-center" style="background:linear-gradient(135deg,#1565C0,#0D47A1);color:white">
+        <h3 class="fw-bold">Ready to park smarter?</h3>
+        <p class="opacity-75 mb-4">Register free and pre-book your parking slot today.</p>
+        <div class="d-flex justify-content-center gap-3">
+            <a href="/register/" class="btn btn-light btn-lg px-4 fw-bold text-primary">
+                <i class="bi bi-person-plus me-2"></i>Create Account
+            </a>
+            <a href="/login/" class="btn btn-outline-light btn-lg px-4">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Login
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStats() {
+    try {
+        const res = await fetch('/api/slots/');
+        const slots = await res.json();
+        document.getElementById('stat-total').textContent = slots.length;
+        document.getElementById('stat-available').textContent = slots.filter(s => s.status === 'available').length;
+        document.getElementById('stat-occupied').textContent = slots.filter(s => s.status === 'occupied').length;
+        document.getElementById('stat-booked').textContent = slots.filter(s => s.status === 'booked').length;
+    } catch(e) {}
+}
+loadStats();
+setInterval(loadStats, 30000);
+</script>
+{% endblock %}

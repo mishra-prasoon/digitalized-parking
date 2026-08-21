@@ -25,7 +25,13 @@ INSTALLED_APPS = [
     'transactions',
     'payments',
     'dashboard',
+    'user_portal',
+    'admin_panel',
+    'gate',
+    'accounts',
 ]
+
+AUTH_USER_MODEL = 'accounts.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -116,3 +122,12 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # Razorpay (we'll add real keys later)
 RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET')
+
+# Session settings
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_SAVE_EVERY_REQUEST = True
+
+# CSRF
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'

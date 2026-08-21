@@ -1,0 +1,395 @@
+{% extends 'base.html' %}
+{% block title %}ANPR Demo — SmartPark{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+    <div class="text-center mb-5">
+        <i class="bi bi-camera-fill text-primary" style="font-size:3.5rem"></i>
+        <h2 class="fw-bold mt-3">ANPR Live Demo</h2>
+        <p class="text-muted">Automatic Number Plate Recognition — Point camera at any number plate</p>
+    </div>
+
+    <!-- Gate Selection -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 p-3">
+                <label class="form-label fw-bold text-center d-block mb-3">Select Gate</label>
+                <div class="d-flex gap-3 justify-content-center">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="gate" id="gate-entry" value="entry" checked>
+                        <label class="form-check-label fw-semibold text-success" for="gate-entry">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Entry Gate
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="gate" id="gate-exit" value="exit">
+                        <label class="form-check-label fw-semibold text-danger" for="gate-exit">
+                            <i class="bi bi-box-arrow-right me-1"></i>Exit Gate
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-pills justify-content-center mb-4" id="anpr-tabs">
+        <li class="nav-item">
+            <button class="nav-link active px-4" onclick="showTab('camera')">
+                <i class="bi bi-camera-video me-2"></i>Live Camera
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link px-4" onclick="showTab('upload')">
+                <i class="bi bi-upload me-2"></i>Upload Image
+            </button>
+        </li>
+    </ul>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <!-- ── LIVE CAMERA TAB ── -->
+            <div id="tab-camera">
+                <div class="card shadow border-0">
+                    <div class="card-body p-4">
+
+                        <div class="text-center mb-3">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                On phone: open <strong id="phone-url">loading...</strong> in Chrome
+                            </small>
+                        </div>
+
+                        <!-- Video preview -->
+                        <div class="position-relative bg-dark rounded overflow-hidden mb-3"
+                             style="aspect-ratio:16/9">
+                            <video id="camera-feed" autoplay playsinline muted
+                                   class="w-100 h-100" style="object-fit:cover"></video>
+                            <canvas id="camera-canvas" class="d-none"></canvas>
+
+                            <!-- Overlay guide box -->
+                            <div class="position-absolute top-50 start-50 translate-middle"
+                                 style="width:70%;height:25%;border:3px solid #00ff00;border-radius:8px;pointer-events:none">
+                                <div class="position-absolute top-0 start-50 translate-middle-x"
+                                     style="background:#00ff00;color:#000;font-size:10px;padding:2px 8px;border-radius:0 0 4px 4px">
+                                    Align plate here
+                                </div>
+                            </div>
+
+                            <!-- Status overlay -->
+                            <div id="camera-status" class="position-absolute bottom-0 start-0 end-0 p-2 text-center"
+                                 style="background:rgba(0,0,0,0.6)">
+                                <small class="text-white">Camera not started</small>
+                            </div>
+                        </div>
+
+                        <!-- Camera controls -->
+                        <div class="d-flex gap-2 mb-3">
+                            <button class="btn btn-outline-primary flex-fill" onclick="startCamera()">
+                                <i class="bi bi-camera-video me-1"></i>Start Camera
+                            </button>
+                            <button class="btn btn-outline-secondary flex-fill" onclick="switchCamera()">
+                                <i class="bi bi-arrow-repeat me-1"></i>Switch Camera
+                            </button>
+                            <button class="btn btn-outline-danger flex-fill" onclick="stopCamera()">
+                                <i class="bi bi-stop-circle me-1"></i>Stop
+                            </button>
+                        </div>
+
+                        <button class="btn btn-success btn-lg w-100" onclick="captureAndProcess()">
+                            <i class="bi bi-camera me-2"></i>Capture & Read Plate
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── UPLOAD TAB ── -->
+            <div id="tab-upload" class="d-none">
+                <div class="card shadow border-0">
+                    <div class="card-body p-4">
+
+                        <!-- Drop zone -->
+                        <div id="drop-zone"
+                             class="border-2 border-dashed rounded p-5 text-center mb-3"
+                             style="border-color:#1565C0;cursor:pointer;transition:background 0.2s"
+                             onclick="document.getElementById('plate-image').click()"
+                             ondragover="event.preventDefault();this.style.background='#e3f2fd'"
+                             ondragleave="this.style.background=''"
+                             ondrop="handleDrop(event)">
+                            <i class="bi bi-cloud-upload text-primary" style="font-size:3rem"></i>
+                            <h5 class="mt-3 text-primary">Click or drag photo here</h5>
+                            <p class="text-muted mb-0">JPG, PNG — photo of vehicle number plate</p>
+                        </div>
+
+                        <input type="file" id="plate-image" accept="image/*"
+                               capture="environment" class="d-none"
+                               onchange="previewAndProcess(event)">
+
+                        <!-- Preview -->
+                        <div id="upload-preview" class="d-none mb-3 text-center">
+                            <img id="preview-img" class="img-fluid rounded shadow"
+                                 style="max-height:300px">
+                        </div>
+
+                        <button class="btn btn-primary btn-lg w-100 d-none"
+                                id="process-btn" onclick="processUploadedImage()">
+                            <i class="bi bi-search me-2"></i>Read Plate & Process
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── RESULT ── -->
+            <div id="anpr-result" class="mt-4"></div>
+
+            <!-- ── MANUAL OVERRIDE ── -->
+            <div class="card mt-4 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-muted mb-3">
+                        <i class="bi bi-keyboard me-2"></i>Manual Entry (if camera unclear)
+                    </h6>
+                    <div class="d-flex gap-2">
+                        <input type="text" class="form-control text-uppercase"
+                               id="manual-plate" placeholder="Type plate number e.g. UP32AB1234"
+                               style="letter-spacing:2px">
+                        <button class="btn btn-primary px-4" onclick="processManual()">
+                            Process
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let stream = null;
+let facingMode = 'environment'; // rear camera by default
+let uploadedFile = null;
+
+// Show phone URL
+const ip = window.location.hostname;
+document.getElementById('phone-url').textContent =
+    ip === '127.0.0.1' ? 'your-laptop-ip:8000/anpr-demo/' : `${ip}:8000/anpr-demo/`;
+
+// ── Tab switching ──────────────────────────────
+function showTab(tab) {
+    document.getElementById('tab-camera').classList.add('d-none');
+    document.getElementById('tab-upload').classList.add('d-none');
+    document.getElementById('tab-' + tab).classList.remove('d-none');
+
+    document.querySelectorAll('#anpr-tabs .nav-link').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    if (tab !== 'camera') stopCamera();
+}
+
+// ── Camera ────────────────────────────────────
+async function startCamera() {
+    try {
+        if (stream) { stream.getTracks().forEach(t => t.stop()); }
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode, width: {ideal: 1280}, height: {ideal: 720} }
+        });
+        document.getElementById('camera-feed').srcObject = stream;
+        document.getElementById('camera-status').innerHTML =
+            '<small class="text-success"><i class="bi bi-circle-fill me-1"></i>Camera active — align plate in green box</small>';
+    } catch(e) {
+        document.getElementById('camera-status').innerHTML =
+            '<small class="text-danger">Camera access denied. Please allow camera permission.</small>';
+    }
+}
+
+function switchCamera() {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    startCamera();
+}
+
+function stopCamera() {
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+    }
+    document.getElementById('camera-feed').srcObject = null;
+    document.getElementById('camera-status').innerHTML =
+        '<small class="text-white">Camera stopped</small>';
+}
+
+function captureAndProcess() {
+    const video = document.getElementById('camera-feed');
+    if (!video.srcObject) { alert('Please start camera first'); return; }
+
+    const canvas = document.getElementById('camera-canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+
+    canvas.toBlob(blob => {
+        sendToANPR(blob, 'capture.jpg');
+    }, 'image/jpeg', 0.95);
+}
+
+// ── Upload ────────────────────────────────────
+function handleDrop(e) {
+    e.preventDefault();
+    e.target.style.background = '';
+    const file = e.dataTransfer.files[0];
+    if (file) loadPreview(file);
+}
+
+function previewAndProcess(e) {
+    const file = e.target.files[0];
+    if (file) loadPreview(file);
+}
+
+function loadPreview(file) {
+    uploadedFile = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('preview-img').src = e.target.result;
+        document.getElementById('upload-preview').classList.remove('d-none');
+        document.getElementById('process-btn').classList.remove('d-none');
+        document.getElementById('drop-zone').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+
+function processUploadedImage() {
+    if (uploadedFile) sendToANPR(uploadedFile, uploadedFile.name);
+}
+
+// ── Core ANPR processor ───────────────────────
+async function sendToANPR(imageBlob, filename) {
+    const gate = document.querySelector('input[name="gate"]:checked').value;
+    const resultDiv = document.getElementById('anpr-result');
+
+    resultDiv.innerHTML = `
+        <div class="card border-0 shadow-sm p-4 text-center">
+            <div class="spinner-border text-primary mx-auto mb-3"></div>
+            <p class="fw-semibold">Reading number plate...</p>
+            <small class="text-muted">OpenCV + Tesseract OCR processing</small>
+        </div>`;
+
+    const formData = new FormData();
+    formData.append('image', imageBlob, filename);
+    formData.append('gate_type', gate);
+
+    try {
+        const res = await fetch('/api/anpr-process/', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        showResult(data, gate);
+    } catch(e) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">Connection error: ${e.message}</div>`;
+    }
+}
+
+function showResult(data, gate) {
+    const resultDiv = document.getElementById('anpr-result');
+    const isEntry = gate === 'entry';
+
+    if (data.success) {
+        const color = isEntry ? 'success' : 'warning';
+        const icon = isEntry ? 'box-arrow-in-right' : 'box-arrow-right';
+        resultDiv.innerHTML = `
+            <div class="card border-0 shadow" style="border-left:5px solid ${isEntry ? '#28a745' : '#ffc107'} !important">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-check-circle-fill text-${color} fs-3 me-3"></i>
+                        <div>
+                            <h5 class="mb-0 fw-bold">${data.message}</h5>
+                            <small class="text-muted">${data.gate_type} processed successfully</small>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="bg-light rounded p-3 text-center">
+                                <div class="small text-muted">Plate Detected</div>
+                                <div class="fw-bold fs-5 text-primary">${data.plate_detected}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light rounded p-3 text-center">
+                                <div class="small text-muted">${isEntry ? 'Assigned Slot' : 'Freed Slot'}</div>
+                                <div class="fw-bold fs-5 text-${color}">${data.slot_id}</div>
+                            </div>
+                        </div>
+                        ${data.entry_type ? `
+                        <div class="col-6">
+                            <div class="bg-light rounded p-3 text-center">
+                                <div class="small text-muted">Entry Type</div>
+                                <div class="fw-bold">${data.entry_type}</div>
+                            </div>
+                        </div>` : ''}
+                        ${data.total_fee ? `
+                        <div class="col-6">
+                            <div class="bg-light rounded p-3 text-center">
+                                <div class="small text-muted">Parking Fee</div>
+                                <div class="fw-bold fs-5 text-danger">${data.total_fee}</div>
+                            </div>
+                        </div>` : ''}
+                    </div>
+                    <div class="mt-3 p-2 bg-success bg-opacity-10 rounded text-center">
+                        <i class="bi bi-door-open me-2 text-success"></i>
+                        <strong class="text-success">Barrier Gate — OPEN ✓</strong>
+                    </div>
+                </div>
+            </div>`;
+    } else {
+        resultDiv.innerHTML = `
+            <div class="card border-0 shadow">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-x-circle-fill text-danger fs-3 me-3"></i>
+                        <div>
+                            <h5 class="mb-0 fw-bold">Processing Failed</h5>
+                            <small class="text-muted">${data.error}</small>
+                        </div>
+                    </div>
+                    ${data.plate_detected ? `
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Plate detected as <strong>${data.plate_detected}</strong> but: ${data.error}
+                    </div>` : `
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Try a clearer image or use manual entry below
+                    </div>`}
+                </div>
+            </div>`;
+    }
+}
+
+// ── Manual entry ──────────────────────────────
+async function processManual() {
+    const plate = document.getElementById('manual-plate').value.toUpperCase().trim();
+    const gate = document.querySelector('input[name="gate"]:checked').value;
+
+    if (!plate) { alert('Enter a plate number'); return; }
+
+    const resultDiv = document.getElementById('anpr-result');
+    resultDiv.innerHTML = '<div class="text-center p-3"><div class="spinner-border text-primary"></div></div>';
+
+    const endpoint = gate === 'entry' ? '/api/entry/' : '/api/exit/';
+    const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plate_number: plate})
+    });
+    const data = await res.json();
+
+    if (data.success) {
+        showResult({...data, plate_detected: plate, gate_type: gate.toUpperCase()}, gate);
+    } else {
+        resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>${data.error}</div>`;
+    }
+}
+</script>
+{% endblock %}

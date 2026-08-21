@@ -98,50 +98,57 @@ def vehicle_entry(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def vehicle_exit(request):
-    """
-    Called by ANPR module when vehicle arrives at exit gate.
-    Expects: { "plate_number": "UP32AB1234" }
-    """
     plate_number = request.data.get('plate_number', '').upper().strip()
 
     if not plate_number:
         return Response({'error': 'Plate number is required'}, status=400)
 
-    # Find open transaction
     try:
         trans = Transaction.objects.get(
             vehicle__vehicle_no=plate_number,
             exit_time__isnull=True
         )
     except Transaction.DoesNotExist:
-        return Response({'error': f'No active transaction found for {plate_number}'}, status=404)
+        return Response({'error': f'No active transaction for {plate_number}'}, status=404)
 
-    # Calculate duration and fee
     exit_time = timezone.now()
     duration = exit_time - trans.entry_time
-    duration_hours = duration.total_seconds() / 3600
-    duration_hours = max(1, math.ceil(duration_hours))  # minimum 1 hour
+    duration_hours = max(1, math.ceil(duration.total_seconds() / 3600))
 
-    hourly_rate = 50  # ₹50 per hour
-    total_fee = duration_hours * hourly_rate
+    # Full parking fee
+    full_fee = duration_hours * 50
 
-    # Update transaction
+    # Deduct pre-booking amount if applicable
+    booking_amount_paid = 0
+    if trans.booking and trans.booking.booking_paid:
+        booking_amount_paid = float(trans.booking.booking_amount)
+
+    # Final fee = full fee - already paid booking amount
+    final_fee = max(0, full_fee - booking_amount_paid)
+
     trans.exit_time = exit_time
-    trans.total_fee = total_fee
+    trans.total_fee = final_fee
     trans.save()
 
+    # Update booking status
+    if trans.booking:
+        trans.booking.status = 'COMPLETED'
+        trans.booking.save()
+
     return Response({
-    'success': True,
-    'message': f'Vehicle {plate_number} exit processed',
-    'transaction_id': trans.id,
-    'slot_id': trans.slot.slot_id,
-    'entry_time': trans.entry_time,
-    'exit_time': exit_time,
-    'duration_hours': duration_hours,
-    'total_fee': total_fee,
-    'total_fee_display': f'₹{total_fee}',
-    'payment_status': 'PENDING',
-    'payment_url': f'/payment/?transaction_id={trans.id}&vehicle={plate_number}&slot={trans.slot.slot_id}&fee={total_fee}&duration={duration_hours}'
+        'success': True,
+        'message': f'Vehicle {plate_number} exit processed',
+        'transaction_id': trans.id,
+        'slot_id': trans.slot.slot_id,
+        'entry_time': trans.entry_time,
+        'exit_time': exit_time,
+        'duration_hours': duration_hours,
+        'full_fee': full_fee,
+        'booking_amount_paid': booking_amount_paid,
+        'total_fee': final_fee,
+        'total_fee_display': f'₹{final_fee}',
+        'payment_status': 'PENDING' if final_fee > 0 else 'PAID',
+        'payment_url': f'/payment/?transaction_id={trans.id}&vehicle={plate_number}&slot={trans.slot.slot_id}&fee={final_fee}&duration={duration_hours}'
     })
 
 

@@ -1,0 +1,103 @@
+{% extends 'user/base.html' %}
+{% block title %}My Bookings — SmartPark{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <h3 class="fw-bold mb-4">
+        <i class="bi bi-calendar-check text-primary me-2"></i>My Bookings
+    </h3>
+
+    <div id="bookings-container">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadBookings() {
+    try {
+        const res = await fetch('/api/bookings/me/');
+        const bookings = await res.json();
+        const div = document.getElementById('bookings-container');
+
+        if (!bookings.length) {
+            div.innerHTML = `
+                <div class="card p-5 text-center">
+                    <i class="bi bi-calendar-x text-muted" style="font-size:3rem"></i>
+                    <h5 class="mt-3 text-muted">No bookings yet</h5>
+                    <a href="/book/" class="btn btn-primary mt-3 px-4">
+                        <i class="bi bi-calendar-plus me-2"></i>Book a Slot
+                    </a>
+                </div>`;
+            return;
+        }
+
+        const statusColors = {
+            CONFIRMED: 'success', ACTIVE: 'primary',
+            COMPLETED: 'secondary', CANCELLED: 'danger'
+        };
+
+        div.innerHTML = `
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Booking ID</th>
+                                <th>Vehicle</th>
+                                <th>Slot</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${bookings.map(b => `
+                            <tr>
+                                <td><strong>#${b.id}</strong></td>
+                                <td>${b.vehicle}</td>
+                                <td><span class="badge bg-primary">${b.slot}</span></td>
+                                <td>${b.booking_date}</td>
+                                <td>${b.start_time} – ${b.end_time}</td>
+                                <td>
+                                    <span class="badge bg-${statusColors[b.status] || 'secondary'}">
+                                        ${b.status}
+                                    </span>
+                                </td>
+                                <td>
+                                    ${b.status === 'CONFIRMED' ?
+                                        `<button class="btn btn-sm btn-outline-danger"
+                                                 onclick="cancelBooking(${b.id})">
+                                            Cancel
+                                        </button>` : '—'}
+                                </td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+    } catch(e) {
+        document.getElementById('bookings-container').innerHTML =
+            '<div class="alert alert-danger">Failed to load bookings</div>';
+    }
+}
+
+async function cancelBooking(id) {
+    if (!confirm('Cancel this booking?')) return;
+    const res = await fetch(`/api/bookings/${id}/cancel/`, {method: 'POST'});
+    const data = await res.json();
+    if (data.success) {
+        alert('Booking cancelled successfully');
+        loadBookings();
+    } else {
+        alert(data.error);
+    }
+}
+
+loadBookings();
+</script>
+{% endblock %}

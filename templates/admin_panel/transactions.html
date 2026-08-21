@@ -1,0 +1,56 @@
+{% extends 'admin_panel/base.html' %}
+{% block title %}Transactions — Admin{% endblock %}
+{% block page_title %}Transaction Log{% endblock %}
+{% block nav_transactions %}active{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-white border-0 pt-3 px-4 d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0">All Transactions</h6>
+        <span class="badge bg-secondary" id="tx-count">Loading...</span>
+    </div>
+    <div class="card-body p-0" id="tx-table">
+        <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadTransactions() {
+    const res = await fetch('/api/list/');
+    const txs = await res.json();
+    document.getElementById('tx-count').textContent = txs.length + ' records';
+
+    document.getElementById('tx-table').innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr><th>ID</th><th>Vehicle</th><th>Slot</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Fee</th><th>Payment</th></tr>
+                </thead>
+                <tbody>
+                    ${txs.map(t => {
+                        let duration = '—';
+                        if (t.entry_time && t.exit_time) {
+                            const mins = Math.round((new Date(t.exit_time) - new Date(t.entry_time)) / 60000);
+                            duration = mins < 60 ? mins + ' min' : Math.round(mins/60) + ' hr';
+                        }
+                        return `
+                        <tr>
+                            <td><strong>#${t.id}</strong></td>
+                            <td>${t.vehicle}</td>
+                            <td><span class="badge bg-primary">${t.slot}</span></td>
+                            <td><small>${new Date(t.entry_time).toLocaleString()}</small></td>
+                            <td><small>${t.exit_time ? new Date(t.exit_time).toLocaleString() : '<span class="badge bg-warning text-dark">Active</span>'}</small></td>
+                            <td>${duration}</td>
+                            <td><strong>${t.total_fee > 0 ? '₹'+t.total_fee : '—'}</strong></td>
+                            <td><span class="badge bg-${t.payment_status==='PAID'?'success':t.payment_status==='FAILED'?'danger':'warning text-dark'}">${t.payment_status}</span></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+loadTransactions();
+</script>
+{% endblock %}

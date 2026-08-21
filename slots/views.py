@@ -37,12 +37,18 @@ def available_slots(request):
 def update_slot_status(request, slot_id):
     try:
         slot = ParkingSlot.objects.get(slot_id=slot_id)
-        new_status = request.data.get('status')
-        if new_status not in ['available', 'occupied', 'booked', 'maintenance']:
-            return Response({'error': 'Invalid status'}, status=400)
-        slot.status = new_status
-        slot.is_occupied = (new_status == 'occupied')
+        action = request.data.get('action')
+        if action == 'occupy':
+            slot.is_occupied = True
+        elif action == 'free':
+            slot.is_occupied = False
+        elif action == 'deactivate':
+            slot.is_active = False
+        elif action == 'activate':
+            slot.is_active = True
+        else:
+            return Response({'error': 'Invalid action'}, status=400)
         slot.save()
-        return Response({'message': f'Slot {slot_id} updated to {new_status}'})
+        return Response({'message': f'Slot {slot_id} updated', 'status': slot.status})
     except ParkingSlot.DoesNotExist:
         return Response({'error': 'Slot not found'}, status=404)

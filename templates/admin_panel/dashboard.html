@@ -1,0 +1,156 @@
+{% extends 'admin_panel/base.html' %}
+{% block title %}Dashboard — Admin Panel{% endblock %}
+{% block page_title %}Live Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card stat-card p-3 text-center" style="background:linear-gradient(135deg,#1565C0,#1976D2);color:white">
+            <div class="small text-uppercase opacity-75">Total Slots</div>
+            <div class="fs-1 fw-bold" id="d-total">—</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card p-3 text-center" style="background:linear-gradient(135deg,#2e7d32,#43a047);color:white">
+            <div class="small text-uppercase opacity-75">Available</div>
+            <div class="fs-1 fw-bold" id="d-available">—</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card p-3 text-center" style="background:linear-gradient(135deg,#c62828,#e53935);color:white">
+            <div class="small text-uppercase opacity-75">Occupied</div>
+            <div class="fs-1 fw-bold" id="d-occupied">—</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card p-3 text-center" style="background:linear-gradient(135deg,#6a1b9a,#8e24aa);color:white">
+            <div class="small text-uppercase opacity-75">Currently Parked</div>
+            <div class="fs-1 fw-bold" id="d-parked">—</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Live Grid -->
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header bg-white border-0 pt-3 px-4">
+                <h6 class="fw-bold mb-0">
+                    <span style="width:8px;height:8px;background:#28a745;border-radius:50%;display:inline-block;margin-right:6px"></span>
+                    Live Slot Grid
+                </h6>
+            </div>
+            <div class="card-body px-4" id="live-grid">
+                <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Currently Parked -->
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header bg-white border-0 pt-3 px-4">
+                <h6 class="fw-bold mb-0">
+                    <i class="bi bi-car-front-fill text-danger me-2"></i>Currently Parked
+                </h6>
+            </div>
+            <div class="card-body px-4" id="parked-list">
+                <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-danger"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white border-0 pt-3 px-4 d-flex justify-content-between">
+                <h6 class="fw-bold mb-0">
+                    <i class="bi bi-list-ul text-success me-2"></i>Recent Transactions
+                </h6>
+                <a href="/admin-panel/transactions/" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0" id="recent-tx">
+                <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-success"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadAll() {
+    // Stats
+    const [slotsRes, activeRes] = await Promise.all([
+        fetch('/api/slots/'), fetch('/api/active/')
+    ]);
+    const slots = await slotsRes.json();
+    const active = await activeRes.json();
+
+    document.getElementById('d-total').textContent = slots.length;
+    document.getElementById('d-available').textContent = slots.filter(s=>s.status==='available').length;
+    document.getElementById('d-occupied').textContent = slots.filter(s=>s.status==='occupied').length;
+    document.getElementById('d-parked').textContent = active.currently_parked;
+
+    // Grid
+    const colors = {available:'#28a745',occupied:'#dc3545',booked:'#ffc107',maintenance:'#6c757d'};
+    document.getElementById('live-grid').innerHTML = `
+        <div class="row g-2">
+            ${slots.map(s=>`
+            <div class="col-4">
+                <div class="card text-center p-2 h-100" style="border:2px solid ${colors[s.status]}">
+                    <div class="fw-bold">${s.slot_id}</div>
+                    <small class="text-muted">${s.zone_name}</small>
+                    <span class="badge mt-1" style="background:${colors[s.status]};color:${s.status==='booked'?'#000':'#fff'};font-size:0.65rem">${s.status}</span>
+                </div>
+            </div>`).join('')}
+        </div>`;
+
+    // Parked list
+    const txDiv = document.getElementById('parked-list');
+    if (!active.transactions.length) {
+        txDiv.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-inbox fs-2"></i><p class="mt-2 mb-0">No vehicles parked</p></div>';
+    } else {
+        txDiv.innerHTML = active.transactions.map(t=>`
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom px-2">
+                <div>
+                    <strong>${t.vehicle}</strong>
+                    <small class="text-muted d-block">Slot: ${t.slot} | Entry: ${new Date(t.entry_time).toLocaleTimeString()}</small>
+                </div>
+                <span class="badge bg-danger">Parked</span>
+            </div>`).join('');
+    }
+
+    // Recent transactions
+    const txRes = await fetch('/api/list/');
+    const txs = await txRes.json();
+    document.getElementById('recent-tx').innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr><th>ID</th><th>Vehicle</th><th>Slot</th><th>Entry</th><th>Exit</th><th>Fee</th><th>Payment</th></tr>
+                </thead>
+                <tbody>
+                    ${txs.slice(0,10).map(t=>`
+                    <tr>
+                        <td>#${t.id}</td>
+                        <td><strong>${t.vehicle}</strong></td>
+                        <td><span class="badge bg-secondary">${t.slot}</span></td>
+                        <td><small>${new Date(t.entry_time).toLocaleString()}</small></td>
+                        <td><small>${t.exit_time ? new Date(t.exit_time).toLocaleString() : '<span class="badge bg-warning text-dark">Active</span>'}</small></td>
+                        <td>${t.total_fee > 0 ? '₹'+t.total_fee : '—'}</td>
+                        <td><span class="badge bg-${t.payment_status==='PAID'?'success':t.payment_status==='FAILED'?'danger':'warning text-dark'}">${t.payment_status}</span></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+loadAll();
+setInterval(loadAll, 10000);
+</script>
+{% endblock %}

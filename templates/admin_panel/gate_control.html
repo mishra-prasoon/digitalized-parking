@@ -1,0 +1,436 @@
+{% extends 'admin_panel/base.html' %}
+{% block title %}Gate Control — Admin{% endblock %}
+{% block page_title %}Gate Control{% endblock %}
+{% block nav_gate %}active{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Manual Entry -->
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h5 class="fw-bold text-success mb-3">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Manual Entry
+            </h5>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Vehicle Number Plate</label>
+                <input type="text" class="form-control form-control-lg text-uppercase"
+                       id="entry-plate" placeholder="UP32AB1234"
+                       style="letter-spacing:2px;font-family:monospace">
+            </div>
+            <button class="btn btn-success btn-lg w-100" onclick="processEntry()">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Process Entry
+            </button>
+            <div id="entry-result" class="mt-3"></div>
+        </div>
+    </div>
+
+    <!-- Manual Exit -->
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h5 class="fw-bold text-danger mb-3">
+                <i class="bi bi-box-arrow-right me-2"></i>Manual Exit
+            </h5>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Vehicle Number Plate</label>
+                <input type="text" class="form-control form-control-lg text-uppercase"
+                       id="exit-plate" placeholder="UP32AB1234"
+                       style="letter-spacing:2px;font-family:monospace">
+            </div>
+            <button class="btn btn-danger btn-lg w-100" onclick="processExit()">
+                <i class="bi bi-box-arrow-right me-2"></i>Process Exit
+            </button>
+            <div id="exit-result" class="mt-3"></div>
+        </div>
+    </div>
+
+    <!-- Currently Parked -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white border-0 pt-3 px-4">
+                <h6 class="fw-bold mb-0">Currently Parked Vehicles</h6>
+            </div>
+            <div class="card-body" id="parked-now">
+                <div class="text-center"><div class="spinner-border spinner-border-sm"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANPR Demo Section -->
+    <div class="col-12 mt-4">
+        <div class="card">
+            <div class="card-header bg-white border-0 pt-3 px-4">
+                <h6 class="fw-bold mb-0">
+                    <i class="bi bi-camera-fill text-primary me-2"></i>
+                    ANPR — Automatic Number Plate Recognition
+                </h6>
+            </div>
+            <div class="card-body p-4">
+
+                <!-- Gate Selection -->
+                <div class="d-flex gap-4 mb-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="anpr-gate"
+                            id="anpr-entry" value="entry" checked>
+                        <label class="form-check-label fw-semibold text-success" for="anpr-entry">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Entry Gate
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="anpr-gate"
+                            id="anpr-exit" value="exit">
+                        <label class="form-check-label fw-semibold text-danger" for="anpr-exit">
+                            <i class="bi bi-box-arrow-right me-1"></i>Exit Gate
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mb-4">
+                    <li class="nav-item">
+                        <button class="nav-link active" onclick="showAnprTab('camera', this)">
+                            <i class="bi bi-camera-video me-1"></i>Live Camera
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="showAnprTab('upload', this)">
+                            <i class="bi bi-upload me-1"></i>Upload Image
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="showAnprTab('manual', this)">
+                            <i class="bi bi-keyboard me-1"></i>Manual
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Camera Tab -->
+                <div id="anpr-tab-camera">
+                    <div class="position-relative bg-dark rounded overflow-hidden mb-3"
+                        style="aspect-ratio:16/9;max-height:350px">
+                        <video id="anpr-video" autoplay playsinline muted
+                            class="w-100 h-100" style="object-fit:cover"></video>
+                        <canvas id="anpr-canvas" class="d-none"></canvas>
+                        <!-- Guide box -->
+                        <div class="position-absolute top-50 start-50 translate-middle"
+                            style="width:70%;height:28%;border:3px solid #00ff00;
+                                    border-radius:8px;pointer-events:none">
+                            <div class="position-absolute top-0 start-50 translate-middle-x"
+                                style="background:#00ff00;color:#000;font-size:11px;
+                                        padding:2px 10px;border-radius:0 0 6px 6px;font-weight:bold">
+                                Align number plate here
+                            </div>
+                        </div>
+                        <div id="anpr-cam-status"
+                            class="position-absolute bottom-0 start-0 end-0 p-2 text-center"
+                            style="background:rgba(0,0,0,0.6)">
+                            <small class="text-white">Camera not started</small>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-outline-primary flex-fill" onclick="startAnprCamera()">
+                            <i class="bi bi-camera-video me-1"></i>Start Camera
+                        </button>
+                        <button class="btn btn-outline-secondary flex-fill" onclick="switchAnprCamera()">
+                            <i class="bi bi-arrow-repeat me-1"></i>Switch
+                        </button>
+                        <button class="btn btn-outline-danger flex-fill" onclick="stopAnprCamera()">
+                            <i class="bi bi-stop-circle me-1"></i>Stop
+                        </button>
+                    </div>
+                    <button class="btn btn-success btn-lg w-100" onclick="captureAnpr()">
+                        <i class="bi bi-camera me-2"></i>Capture & Read Plate
+                    </button>
+                </div>
+
+                <!-- Upload Tab -->
+                <div id="anpr-tab-upload" class="d-none">
+                    <div class="border rounded p-4 text-center mb-3"
+                        style="cursor:pointer;border-style:dashed !important;border-color:#1565C0 !important"
+                        onclick="document.getElementById('anpr-file').click()">
+                        <i class="bi bi-cloud-upload text-primary" style="font-size:2.5rem"></i>
+                        <p class="mt-2 mb-0 text-primary fw-semibold">Click to upload plate image</p>
+                        <small class="text-muted">JPG or PNG</small>
+                    </div>
+                    <input type="file" id="anpr-file" accept="image/*"
+                        capture="environment" class="d-none"
+                        onchange="previewAnprImage(event)">
+                    <div id="anpr-preview" class="d-none text-center mb-3">
+                        <img id="anpr-preview-img" class="img-fluid rounded shadow"
+                            style="max-height:250px">
+                    </div>
+                    <button class="btn btn-primary btn-lg w-100 d-none"
+                            id="anpr-process-btn" onclick="processAnprUpload()">
+                        <i class="bi bi-search me-2"></i>Read Plate & Process
+                    </button>
+                </div>
+
+                <!-- Manual Tab -->
+                <div id="anpr-tab-manual" class="d-none">
+                    <div class="d-flex gap-2">
+                        <input type="text" class="form-control form-control-lg text-uppercase"
+                            id="anpr-manual-plate"
+                            placeholder="Type plate number e.g. UP32AB1234"
+                            style="letter-spacing:2px;font-family:monospace">
+                        <button class="btn btn-primary px-4" onclick="processAnprManual()">
+                            Process
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Result -->
+                <div id="anpr-result" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+// ── ANPR Functions ────────────────────────────────────────────
+let anprStream = null;
+let anprFacing = 'environment';
+let anprUploadFile = null;
+
+function showAnprTab(tab, btn) {
+    ['camera', 'upload', 'manual'].forEach(t => {
+        document.getElementById(`anpr-tab-${t}`).classList.add('d-none');
+    });
+    document.getElementById(`anpr-tab-${tab}`).classList.remove('d-none');
+    document.querySelectorAll('.nav-tabs .nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (tab !== 'camera') stopAnprCamera();
+}
+
+async function startAnprCamera() {
+    try {
+        if (anprStream) anprStream.getTracks().forEach(t => t.stop());
+        anprStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: anprFacing, width: {ideal:1280}, height: {ideal:720} }
+        });
+        document.getElementById('anpr-video').srcObject = anprStream;
+        document.getElementById('anpr-cam-status').innerHTML =
+            '<small class="text-success">● Camera active — align plate in green box</small>';
+    } catch(e) {
+        document.getElementById('anpr-cam-status').innerHTML =
+            '<small class="text-danger">Camera access denied</small>';
+    }
+}
+
+function switchAnprCamera() {
+    anprFacing = anprFacing === 'environment' ? 'user' : 'environment';
+    startAnprCamera();
+}
+
+function stopAnprCamera() {
+    if (anprStream) {
+        anprStream.getTracks().forEach(t => t.stop());
+        anprStream = null;
+        document.getElementById('anpr-video').srcObject = null;
+        document.getElementById('anpr-cam-status').innerHTML =
+            '<small class="text-white">Camera stopped</small>';
+    }
+}
+
+function captureAnpr() {
+    const video = document.getElementById('anpr-video');
+    if (!video.srcObject) { alert('Start camera first'); return; }
+    const canvas = document.getElementById('anpr-canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob(blob => sendToAnprApi(blob, 'capture.jpg'), 'image/jpeg', 0.95);
+}
+
+function previewAnprImage(e) {
+    anprUploadFile = e.target.files[0];
+    if (!anprUploadFile) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        document.getElementById('anpr-preview-img').src = ev.target.result;
+        document.getElementById('anpr-preview').classList.remove('d-none');
+        document.getElementById('anpr-process-btn').classList.remove('d-none');
+    };
+    reader.readAsDataURL(anprUploadFile);
+}
+
+function processAnprUpload() {
+    if (anprUploadFile) sendToAnprApi(anprUploadFile, anprUploadFile.name);
+}
+
+async function sendToAnprApi(blob, filename) {
+    const gate = document.querySelector('input[name="anpr-gate"]:checked').value;
+    const resultDiv = document.getElementById('anpr-result');
+
+    resultDiv.innerHTML = `
+        <div class="card border-0 bg-light p-3 text-center">
+            <div class="spinner-border text-primary mx-auto mb-2"></div>
+            <p class="mb-0 fw-semibold">Reading number plate...</p>
+            <small class="text-muted">OpenCV + Tesseract OCR processing</small>
+        </div>`;
+
+    const formData = new FormData();
+    formData.append('image', blob, filename);
+    formData.append('gate_type', gate);
+
+    try {
+        const res = await fetch('/api/anpr-process/', {method:'POST', body:formData});
+        const data = await res.json();
+        showAnprResult(data, gate);
+        loadParked();
+    } catch(e) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
+    }
+}
+
+async function processAnprManual() {
+    const plate = document.getElementById('anpr-manual-plate').value.toUpperCase().trim();
+    const gate = document.querySelector('input[name="anpr-gate"]:checked').value;
+    if (!plate) { alert('Enter plate number'); return; }
+
+    const endpoint = gate === 'entry' ? '/api/entry/' : '/api/exit/';
+    const resultDiv = document.getElementById('anpr-result');
+    resultDiv.innerHTML = '<div class="text-center p-3"><div class="spinner-border text-primary"></div></div>';
+
+    const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plate_number: plate})
+    });
+    const data = await res.json();
+    showAnprResult({...data, plate_detected: plate}, gate);
+    loadParked();
+}
+
+function showAnprResult(data, gate) {
+    const resultDiv = document.getElementById('anpr-result');
+    const isEntry = gate === 'entry';
+
+    if (data.success) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-${isEntry ? 'success' : 'warning'} border-0">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-check-circle-fill fs-4 me-2"></i>
+                    <strong>${data.message}</strong>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-6">
+                        <div class="bg-white rounded p-2 text-center">
+                            <small class="text-muted d-block">Plate</small>
+                            <strong class="text-primary">${data.plate_detected || data.vehicle || '—'}</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-white rounded p-2 text-center">
+                            <small class="text-muted d-block">Slot</small>
+                            <strong>${data.slot_id || '—'}</strong>
+                        </div>
+                    </div>
+                    ${data.total_fee_display ? `
+                    <div class="col-6">
+                        <div class="bg-white rounded p-2 text-center">
+                            <small class="text-muted d-block">Fee</small>
+                            <strong class="text-danger">${data.total_fee_display}</strong>
+                        </div>
+                    </div>` : ''}
+                    ${data.payment_url && data.total_fee > 0 ? `
+                    <div class="col-12">
+                        <a href="${data.payment_url}" target="_blank"
+                           class="btn btn-primary w-100 btn-sm">
+                            <i class="bi bi-credit-card me-1"></i>Open Payment Page
+                        </a>
+                    </div>` : ''}
+                </div>
+                <div class="mt-2 p-2 rounded text-center"
+                     style="background:rgba(255,255,255,0.5)">
+                    <i class="bi bi-door-open me-1"></i>
+                    <strong>Barrier Gate — OPEN ✓</strong>
+                </div>
+            </div>`;
+    } else {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger border-0">
+                <i class="bi bi-x-circle-fill me-2"></i>
+                ${data.error || 'Processing failed'}
+                ${data.plate_detected ? `<br><small>Plate detected: <strong>${data.plate_detected}</strong></small>` : ''}
+            </div>`;
+    }
+}
+async function processEntry() {
+    const plate = document.getElementById('entry-plate').value.toUpperCase().trim();
+    if (!plate) { alert('Enter plate number'); return; }
+    const res = await fetch('/api/entry/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plate_number: plate})
+    });
+    const data = await res.json();
+    const div = document.getElementById('entry-result');
+    if (data.success) {
+        div.innerHTML = `<div class="alert alert-success"><strong>${data.message}</strong><br><small>Transaction #${data.transaction_id}</small></div>`;
+    } else {
+        div.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+    }
+    loadParked();
+}
+
+async function processExit() {
+    const plate = document.getElementById('exit-plate').value.toUpperCase().trim();
+    if (!plate) { alert('Enter plate number'); return; }
+    const res = await fetch('/api/exit/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plate_number: plate})
+    });
+    const data = await res.json();
+    const div = document.getElementById('exit-result');
+    if (data.success) {
+        div.innerHTML = `
+            <div class="alert alert-warning">
+                <strong>${data.message}</strong><br>
+                <small>Fee: ${data.total_fee_display} | Duration: ${data.duration_hours}hr</small><br>
+                <a href="${data.payment_url}" target="_blank" class="btn btn-sm btn-primary mt-2">
+                    <i class="bi bi-credit-card me-1"></i>Open Payment Page
+                </a>
+            </div>`;
+    } else {
+        div.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+    }
+    loadParked();
+}
+
+async function loadParked() {
+    const res = await fetch('/api/active/');
+    const data = await res.json();
+    const div = document.getElementById('parked-now');
+    if (!data.transactions.length) {
+        div.innerHTML = '<p class="text-muted text-center">No vehicles currently parked</p>';
+        return;
+    }
+    div.innerHTML = `
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr><th>Vehicle</th><th>Slot</th><th>Entry Time</th><th>Duration</th></tr>
+                </thead>
+                <tbody>
+                    ${data.transactions.map(t => {
+                        const mins = Math.round((new Date()-new Date(t.entry_time))/60000);
+                        return `
+                        <tr>
+                            <td><strong>${t.vehicle}</strong></td>
+                            <td><span class="badge bg-primary">${t.slot}</span></td>
+                            <td>${new Date(t.entry_time).toLocaleTimeString()}</td>
+                            <td>${mins < 60 ? mins+' min' : Math.round(mins/60)+' hr'}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+loadParked();
+setInterval(loadParked, 10000);
+</script>
+{% endblock %}

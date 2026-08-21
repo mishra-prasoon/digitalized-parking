@@ -1,0 +1,112 @@
+{% extends 'admin_panel/base.html' %}
+{% block title %}Reports — Admin{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+{% block nav_reports %}active{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Revenue Summary -->
+    <div class="col-md-4">
+        <div class="card p-4 text-center" style="background:linear-gradient(135deg,#1565C0,#1976D2);color:white">
+            <i class="bi bi-currency-rupee" style="font-size:2.5rem"></i>
+            <div class="fs-1 fw-bold mt-2" id="total-revenue">—</div>
+            <div class="opacity-75">Total Revenue</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 text-center" style="background:linear-gradient(135deg,#2e7d32,#43a047);color:white">
+            <i class="bi bi-car-front-fill" style="font-size:2.5rem"></i>
+            <div class="fs-1 fw-bold mt-2" id="total-vehicles">—</div>
+            <div class="opacity-75">Total Vehicles Served</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 text-center" style="background:linear-gradient(135deg,#f57f17,#fb8c00);color:white">
+            <i class="bi bi-calendar-check-fill" style="font-size:2.5rem"></i>
+            <div class="fs-1 fw-bold mt-2" id="total-bookings">—</div>
+            <div class="opacity-75">Total Bookings</div>
+        </div>
+    </div>
+
+    <!-- Transaction table for report -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white border-0 pt-3 px-4 d-flex justify-content-between">
+                <h6 class="fw-bold mb-0">Completed Transactions Report</h6>
+                <button class="btn btn-sm btn-success" onclick="downloadCSV()">
+                    <i class="bi bi-download me-1"></i>Download CSV
+                </button>
+            </div>
+            <div class="card-body p-0" id="report-table">
+                <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allTransactions = [];
+
+async function loadReports() {
+    const [txRes, bookRes] = await Promise.all([
+        fetch('/api/list/'),
+        fetch('/api/bookings/')
+    ]);
+    allTransactions = await txRes.json();
+    const bookings = await bookRes.json();
+
+    const completed = allTransactions.filter(t => t.payment_status === 'PAID');
+    const revenue = completed.reduce((sum, t) => sum + parseFloat(t.total_fee || 0), 0);
+
+    document.getElementById('total-revenue').textContent = '₹' + revenue.toFixed(0);
+    document.getElementById('total-vehicles').textContent = allTransactions.length;
+    document.getElementById('total-bookings').textContent = bookings.length;
+
+    document.getElementById('report-table').innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="report-data">
+                <thead class="table-light">
+                    <tr><th>ID</th><th>Vehicle</th><th>Slot</th><th>Date</th><th>Duration</th><th>Fee</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    ${completed.map(t => {
+                        const mins = t.exit_time ? Math.round((new Date(t.exit_time)-new Date(t.entry_time))/60000) : 0;
+                        return `
+                        <tr>
+                            <td>#${t.id}</td>
+                            <td>${t.vehicle}</td>
+                            <td>${t.slot}</td>
+                            <td>${new Date(t.entry_time).toLocaleDateString()}</td>
+                            <td>${mins < 60 ? mins+'min' : Math.round(mins/60)+'hr'}</td>
+                            <td><strong>₹${t.total_fee}</strong></td>
+                            <td><span class="badge bg-success">PAID</span></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function downloadCSV() {
+    const completed = allTransactions.filter(t => t.payment_status === 'PAID');
+    const rows = [['ID','Vehicle','Slot','Entry','Exit','Fee','Status']];
+    completed.forEach(t => {
+        rows.push([t.id, t.vehicle, t.slot,
+            new Date(t.entry_time).toLocaleString(),
+            t.exit_time ? new Date(t.exit_time).toLocaleString() : '',
+            t.total_fee, t.payment_status]);
+    });
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'smartpark_report.csv';
+    a.click();
+}
+
+loadReports();
+</script>
+{% endblock %}

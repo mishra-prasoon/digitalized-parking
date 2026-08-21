@@ -1,0 +1,135 @@
+{% extends 'user/base.html' %}
+{% block title %}Available Slots — SmartPark{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold mb-0">
+                <span style="width:10px;height:10px;background:#28a745;border-radius:50%;display:inline-block;margin-right:8px;animation:pulse 1.5s infinite"></span>
+                Live Slot Availability
+            </h3>
+            <small class="text-muted">Updates every 15 seconds</small>
+        </div>
+        <button class="btn btn-outline-primary" onclick="loadSlots()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="card p-3 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Zone</label>
+                <select class="form-select" id="f-zone">
+                    <option value="">All Zones</option>
+                    <option>Ground Floor</option>
+                    <option>Level 1</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Type</label>
+                <select class="form-select" id="f-type">
+                    <option value="">All Types</option>
+                    <option>Compact</option>
+                    <option>SUV</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Status</label>
+                <select class="form-select" id="f-status">
+                    <option value="">All</option>
+                    <option value="available">Available</option>
+                    <option value="occupied">Occupied</option>
+                    <option value="booked">Pre-Booked</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100" onclick="loadSlots()">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="d-flex gap-3 mb-4 flex-wrap">
+        <span class="badge px-3 py-2" style="background:#28a745">✓ Available</span>
+        <span class="badge px-3 py-2" style="background:#dc3545">✗ Occupied</span>
+        <span class="badge px-3 py-2 text-dark" style="background:#ffc107">⏰ Pre-Booked</span>
+        <span class="badge px-3 py-2" style="background:#6c757d">🔧 Maintenance</span>
+    </div>
+
+    <!-- Grid -->
+    <div class="row g-3" id="slots-grid">
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary"></div>
+        </div>
+    </div>
+
+    <!-- Book CTA -->
+    <div class="text-center mt-5">
+        {% if request.session.user_id %}
+        <a href="/book/" class="btn btn-primary btn-lg px-5">
+            <i class="bi bi-calendar-plus me-2"></i>Pre-Book a Slot
+        </a>
+        {% else %}
+        <p class="text-muted">Want to reserve a slot in advance?</p>
+        <a href="/login/" class="btn btn-primary btn-lg px-5">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Login to Pre-Book
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(40,167,69,0.7); }
+    70% { box-shadow: 0 0 0 8px rgba(40,167,69,0); }
+    100% { box-shadow: 0 0 0 0 rgba(40,167,69,0); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadSlots() {
+    const zone = document.getElementById('f-zone').value;
+    const type = document.getElementById('f-type').value;
+    const status = document.getElementById('f-status').value;
+    let url = '/api/slots/?';
+    if (zone) url += `zone=${encodeURIComponent(zone)}&`;
+    if (type) url += `slot_type=${encodeURIComponent(type)}&`;
+    if (status) url += `status=${encodeURIComponent(status)}&`;
+
+    const grid = document.getElementById('slots-grid');
+    grid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>';
+
+    fetch(url).then(r => r.json()).then(slots => {
+        if (!slots.length) {
+            grid.innerHTML = '<div class="col-12 text-center py-5 text-muted"><i class="bi bi-inbox fs-1"></i><p class="mt-2">No slots found</p></div>';
+            return;
+        }
+        const colors = {available:'#28a745', occupied:'#dc3545', booked:'#ffc107', maintenance:'#6c757d'};
+        const icons = {available:'check-circle-fill', occupied:'x-circle-fill', booked:'calendar-check-fill', maintenance:'tools'};
+        const labels = {available:'Free', occupied:'Full', booked:'Reserved', maintenance:'Maintenance'};
+
+        grid.innerHTML = slots.map(s => `
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="card p-3 h-100" style="border-left:5px solid ${colors[s.status]}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h4 class="fw-bold mb-0">${s.slot_id}</h4>
+                        <span class="badge" style="background:${colors[s.status]};color:${s.status==='booked'?'#000':'#fff'}">
+                            ${labels[s.status]}
+                        </span>
+                    </div>
+                    <small class="text-muted d-block">${s.zone_name}</small>
+                    <small class="text-muted"><i class="bi bi-car-front me-1"></i>${s.slot_type}</small>
+                </div>
+            </div>`).join('');
+    });
+}
+loadSlots();
+setInterval(loadSlots, 15000);
+</script>
+{% endblock %}

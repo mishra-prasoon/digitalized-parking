@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exit Kiosk — SmartPark</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #0a0a1a; color: white;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh; display: flex; flex-direction: column;
+        }
+        .gate-header {
+            background: #b71c1c; padding: 16px 32px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .status-screen {
+            flex: 1; display: flex; align-items: center;
+            justify-content: center; flex-direction: column; padding: 40px;
+        }
+        .plate-display {
+            font-size: 4rem; font-weight: 900; letter-spacing: 8px;
+            background: #ffc107; color: #000; padding: 16px 48px;
+            border-radius: 12px; border: 4px solid #ff9800; font-family: monospace;
+        }
+        .fee-display {
+            font-size: 6rem; font-weight: 900; color: #ffd54f;
+        }
+        .clock { font-size: 1.4rem; font-family: monospace; }
+        .blink { animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+
+<div class="gate-header">
+    <div>
+        <span style="font-size:1.5rem;font-weight:700">🚗 SmartPark</span>
+        <span class="ms-3 badge bg-warning text-dark">EXIT KIOSK</span>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+</div>
+
+<div class="status-screen" id="status-screen">
+    <div class="text-center" style="color:#64b5f6">
+        <div style="font-size:5rem" class="blink">🚦</div>
+        <h1 style="font-size:3rem;font-weight:700;margin-top:16px">READY</h1>
+        <p style="font-size:1.5rem;opacity:0.7">Waiting for vehicle at exit...</p>
+    </div>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+function updateClock() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Track last processed exit
+let lastExitId = null;
+
+async function pollExits() {
+    try {
+        const res = await fetch('/api/list/');
+        const txs = await res.json();
+        // Find transactions with exit_time but PENDING payment
+        const pending = txs.find(t =>
+            t.exit_time && t.payment_status === 'PENDING' && t.id !== lastExitId
+        );
+        if (pending) {
+            lastExitId = pending.id;
+            showPaymentScreen(pending);
+        }
+    } catch(e) {}
+}
+
+function showPaymentScreen(tx) {
+    const screen = document.getElementById('status-screen');
+    screen.innerHTML = `
+        <div class="text-center">
+            <h2 style="color:#ffd54f;font-size:2rem;font-weight:700">PARKING FEE DUE</h2>
+            <div class="plate-display my-4">${tx.vehicle}</div>
+            <p style="opacity:0.7">Slot: ${tx.slot}</p>
+            <div class="fee-display">₹${tx.total_fee}</div>
+            <p style="font-size:1.2rem;opacity:0.7;margin-top:8px">Scan QR or pay below</p>
+            <button onclick="openRazorpay(${tx.id}, '${tx.vehicle}', '${tx.slot}', ${tx.total_fee})"
+                    style="margin-top:24px;padding:16px 48px;font-size:1.5rem;font-weight:700;
+                           background:#ffc107;color:#000;border:none;border-radius:12px;cursor:pointer">
+                💳 PAY NOW
+            </button>
+        </div>`;
+}
+
+async function openRazorpay(txId, vehicle, slot, fee) {
+    const res = await fetch('/api/payment/create-order/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({transaction_id: txId})
+    });
+    const order = await res.json();
+    if (!order.success) { alert(order.error); return; }
+
+    const options = {
+        key: order.key_id,
+        amount: order.amount,
+        currency: 'INR',
+        name: 'SmartPark Exit',
+        description: `Parking Fee — Slot ${slot}`,
+        order_id: order.order_id,
+        handler: async function(response) {
+            const vRes = await fetch('/api/payment/verify-payment/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_signature: response.razorpay_signature,
+                    transaction_id: txId
+                })
+            });
+            const vData = await vRes.json();
+            if (vData.success) {
+                document.getElementById('status-screen').innerHTML = `
+                    <div class="text-center" style="color:#00e676">
+                        <div style="font-size:5rem">✅</div>
+                        <h1 style="font-size:3rem;font-weight:700;margin-top:16px">PAYMENT DONE!</h1>
+                        <div class="plate-display my-4" style="background:#00e676;border-color:#00c853">${vehicle}</div>
+                        <div style="padding:16px 32px;background:#00e67633;border-radius:12px;border:2px solid #00e676;font-size:1.8rem;margin-top:16px">
+                            🚧 BARRIER OPEN — Have a safe journey!
+                        </div>
+                    </div>`;
+                lastExitId = txId;
+                setTimeout(() => {
+                    document.getElementById('status-screen').innerHTML = `
+                        <div class="text-center" style="color:#64b5f6">
+                            <div style="font-size:5rem" class="blink">🚦</div>
+                            <h1 style="font-size:3rem;font-weight:700;margin-top:16px">READY</h1>
+                            <p style="font-size:1.5rem;opacity:0.7">Waiting for vehicle at exit...</p>
+                        </div>`;
+                }, 8000);
+            }
+        },
+        theme: { color: '#b71c1c' }
+    };
+    new Razorpay(options).open();
+}
+
+setInterval(pollExits, 3000);
+</script>
+</body>
+</html>
