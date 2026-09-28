@@ -2,5 +2,6 @@
 {% block content %}
 <h2>User Portal</h2>
 <p>Welcome, {{ user.username }}.</p>
+<p><a href="{% url 'my_bookings' %}">My bookings</a> | <a href="{% url 'create_booking' %}">Book a slot</a></p>
 <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Logout</button></form>
 {% endblock %}

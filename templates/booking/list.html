@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>My Bookings</h2>
+{% if messages %}<ul>{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+<p><a href="{% url 'create_booking' %}">New booking</a></p>
+<table border="1" cellpadding="6">
+  <tr><th>Slot</th><th>Vehicle</th><th>Start</th><th>End</th><th>Status</th><th></th></tr>
+  {% for b in bookings %}
+  <tr>
+    <td>{{ b.slot_id }}</td>
+    <td>{{ b.vehicle_id }}</td>
+    <td>{{ b.start_time }}</td>
+    <td>{{ b.end_time }}</td>
+    <td>{{ b.get_status_display }}</td>
+    <td>
+      {% if b.status == 'confirmed' %}
+      <form method="post" action="{% url 'cancel_booking' b.pk %}">{% csrf_token %}<button type="submit">Cancel</button></form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

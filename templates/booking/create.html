@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Book a Slot</h2>
+{% if form.non_field_errors %}
+  <ul>{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+{% endif %}
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Book</button>
+</form>
+<p><a href="{% url 'my_bookings' %}">My bookings</a></p>
+{% endblock %}
