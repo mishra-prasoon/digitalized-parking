@@ -11,7 +11,10 @@ class ParkingSlot(models.Model):
     zone_name = models.CharField(max_length=20)
     slot_type = models.CharField(max_length=10, choices=SlotType.choices, default=SlotType.COMPACT)
     is_active = models.BooleanField(default=True)
-    is_occupied = models.BooleanField(default=False)  # temporary; replaced by derived status in Phase 4
+
+    @property
+    def is_currently_occupied(self):
+        return self.transactions.filter(status='open').exists()
 
     def __str__(self):
         return self.slot_id

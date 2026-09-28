@@ -5,8 +5,8 @@ from .models import ParkingSlot, Vehicle
 
 @admin.register(ParkingSlot)
 class ParkingSlotAdmin(admin.ModelAdmin):
-    list_display = ('slot_id', 'zone_name', 'slot_type', 'is_active', 'is_occupied')
-    list_filter = ('zone_name', 'slot_type', 'is_active', 'is_occupied')
+    list_display = ('slot_id', 'zone_name', 'slot_type', 'is_active', 'is_currently_occupied')
+    list_filter = ('zone_name', 'slot_type', 'is_active')
     search_fields = ('slot_id',)
 
 
