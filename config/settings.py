@@ -137,3 +137,4 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard_redirect'
 LOGOUT_REDIRECT_URL = 'login'
+LOGIN_REQUIRED_IGNORE_URLS = None  # not used; we exempt per-view below instead
