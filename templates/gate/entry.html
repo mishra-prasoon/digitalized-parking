@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Entry Gate</h2>
+
+<div>
+  <video id="video" width="320" height="240" autoplay style="border:1px solid #333;"></video>
+  <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+</div>
+
+<p>
+  <button id="captureBtn" type="button">Capture from Camera</button>
+  or
+  <input type="file" id="fileInput" accept="image/*">
+</p>
+
+<div id="result" style="margin-top:1em; font-size:1.2em;"></div>
+
+<div id="manualEntry" style="display:none; margin-top:1em;">
+  <p>No plate detected. Enter manually:</p>
+  <input type="text" id="manualPlate" placeholder="e.g. UP65AB1234">
+  <button id="manualSubmit" type="button">Check In</button>
+</div>
+
+<p><a href="{% url 'staff_dashboard' %}">Back to Dashboard</a></p>
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+let stream = null;
+
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(s => {
+    stream = s;
+    document.getElementById('video').srcObject = s;
+  })
+  .catch(err => {
+    document.getElementById('result').innerText = 'Camera unavailable: ' + err.message + ' (use file upload instead)';
+  });
+
+function showResult(data) {
+  const el = document.getElementById('result');
+  const manualBox = document.getElementById('manualEntry');
+  if (data.error) {
+    el.innerText = 'Error: ' + data.error + (data.plate ? ' (plate: ' + data.plate + ')' : '');
+    manualBox.style.display = 'none';
+  } else if (!data.plate) {
+    el.innerText = data.message || 'No plate detected.';
+    manualBox.style.display = 'block';
+  } else if (data.slot_id) {
+    el.innerHTML = '<strong>Plate: ' + data.plate + '</strong><br>Slot assigned: <strong>' + data.slot_id + '</strong><br>Barrier opening...';
+    manualBox.style.display = 'none';
+  }
+}
+
+function sendImages(blobs) {
+  const formData = new FormData();
+  blobs.forEach((b, i) => formData.append('images', b, 'frame' + i + '.jpg'));
+  fetch('{% url "entry_check_in" %}', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF_TOKEN },
+    body: formData,
+  })
+    .then(r => r.json())
+    .then(showResult)
+    .catch(err => { document.getElementById('result').innerText = 'Request failed: ' + err; });
+}
+
+document.getElementById('captureBtn').addEventListener('click', () => {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const blobs = [];
+  let count = 0;
+
+  function grabFrame() {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+      blobs.push(blob);
+      count++;
+      if (count < 3) {
+        setTimeout(grabFrame, 300);
+      } else {
+        sendImages(blobs);
+      }
+    }, 'image/jpeg');
+  }
+  grabFrame();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) sendImages([file]);
+});
+
+document.getElementById('manualSubmit').addEventListener('click', () => {
+  const plate = document.getElementById('manualPlate').value.trim();
+  if (!plate) return;
+  const formData = new FormData();
+  formData.append('manual_plate', plate);
+  fetch('{% url "entry_check_in" %}', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF_TOKEN },
+    body: formData,
+  })
+    .then(r => r.json())
+    .then(showResult)
+    .catch(err => { document.getElementById('result').innerText = 'Request failed: ' + err; });
+});
+</script>
+{% endblock %}

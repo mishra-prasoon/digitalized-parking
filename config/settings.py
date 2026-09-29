@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'booking',
     'parking',
     'anpr',
+    'gate',
 ]
 
 MIDDLEWARE = [
