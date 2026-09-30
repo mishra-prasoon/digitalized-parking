@@ -14,7 +14,9 @@ class ParkingSlot(models.Model):
 
     @property
     def is_currently_occupied(self):
-        return self.transactions.filter(status='open').exists()
+        # a slot is occupied physically until the vehicle has actually left,
+        # which is only true once its transaction is CLOSED (payment confirmed)
+        return self.transactions.exclude(status='closed').exists()
 
     def __str__(self):
         return self.slot_id

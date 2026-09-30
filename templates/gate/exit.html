@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Exit Kiosk</h2>
+
+<div>
+  <video id="video" width="320" height="240" autoplay style="border:1px solid #333;"></video>
+  <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+</div>
+
+<p>
+  <button id="captureBtn" type="button">Capture from Camera</button>
+  or
+  <input type="file" id="fileInput" accept="image/*">
+</p>
+
+<div id="manualEntry">
+  <input type="text" id="manualPlate" placeholder="e.g. UP65AB1234">
+  <button id="manualSubmit" type="button">Scan for Exit</button>
+</div>
+
+<div id="result" style="margin-top:1em; font-size:1.2em;"></div>
+
+<p><a href="{% url 'staff_dashboard' %}">Back to Dashboard</a></p>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+const RAZORPAY_KEY_ID = '{{ razorpay_key_id }}';
+
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(s => { document.getElementById('video').srcObject = s; })
+  .catch(err => {
+    document.getElementById('result').innerText = 'Camera unavailable: ' + err.message + ' (use file upload or manual entry)';
+  });
+
+function showMessage(text) {
+  document.getElementById('result').innerText = text;
+}
+
+function openCheckout(scanData) {
+  const options = {
+    key: RAZORPAY_KEY_ID,
+    amount: scanData.amount_paise,
+    currency: 'INR',
+    name: 'Parking Exit Payment',
+    description: 'Plate: ' + scanData.plate + ' | Fee: Rs.' + scanData.fee,
+    order_id: scanData.razorpay_order_id,
+    handler: function (response) {
+      const formData = new FormData();
+      formData.append('transaction_id', scanData.transaction_id);
+      formData.append('razorpay_order_id', response.razorpay_order_id);
+      formData.append('razorpay_payment_id', response.razorpay_payment_id);
+      formData.append('razorpay_signature', response.razorpay_signature);
+
+      fetch('{% url "exit_confirm_payment" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF_TOKEN },
+        body: formData,
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            showMessage('Payment verification failed: ' + data.error);
+          } else {
+            showMessage('Payment confirmed. Slot freed. Barrier opening...');
+          }
+        })
+        .catch(err => showMessage('Confirm request failed: ' + err));
+    },
+    modal: {
+      ondismiss: function () {
+        showMessage('Payment cancelled. Please retry payment for plate ' + scanData.plate + '.');
+      }
+    },
+    theme: { color: '#3399cc' }
+  };
+  const rzp = new Razorpay(options);
+  rzp.open();
+}
+
+function sendScan(formData) {
+  fetch('{% url "exit_scan" %}', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF_TOKEN },
+    body: formData,
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        showMessage('Error: ' + data.error + (data.plate ? ' (plate: ' + data.plate + ')' : ''));
+      } else if (!data.plate) {
+        showMessage(data.message || 'No plate detected. Enter manually.');
+      } else if (data.razorpay_order_id) {
+        showMessage('Plate: ' + data.plate + ' | Fee: Rs.' + data.fee + ' | Opening payment...');
+        openCheckout(data);
+      }
+    })
+    .catch(err => showMessage('Request failed: ' + err));
+}
+
+document.getElementById('captureBtn').addEventListener('click', () => {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const blobs = [];
+  let count = 0;
+
+  function grabFrame() {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+      blobs.push(blob);
+      count++;
+      if (count < 3) {
+        setTimeout(grabFrame, 300);
+      } else {
+        const formData = new FormData();
+        blobs.forEach((b, i) => formData.append('images', b, 'frame' + i + '.jpg'));
+        sendScan(formData);
+      }
+    }, 'image/jpeg');
+  }
+  grabFrame();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const formData = new FormData();
+    formData.append('images', file);
+    sendScan(formData);
+  }
+});
+
+document.getElementById('manualSubmit').addEventListener('click', () => {
+  const plate = document.getElementById('manualPlate').value.trim();
+  if (!plate) return;
+  const formData = new FormData();
+  formData.append('manual_plate', plate);
+  sendScan(formData);
+});
+</script>
+{% endblock %}

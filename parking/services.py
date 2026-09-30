@@ -27,7 +27,7 @@ def _matching_booking(vehicle, now):
 def allocate_and_check_in(vehicle):
     now = timezone.now()
 
-    if Transaction.objects.filter(vehicle=vehicle, status=Transaction.Status.OPEN).exists():
+    if Transaction.objects.filter(vehicle=vehicle, status__in=[Transaction.Status.OPEN, Transaction.Status.AWAITING_PAYMENT]).exists():
         raise AllocationError('Vehicle already has an open session.')
 
     booking = _matching_booking(vehicle, now)
