@@ -2,6 +2,23 @@
 {% block content %}
 <h2>Staff Dashboard</h2>
 <p>Welcome, {{ user.username }}.</p>
-<p><a href="{% url 'entry_gate' %}">Entry Gate</a> | <a href="{% url 'exit_gate' %}">Exit Kiosk</a></p>
+<p><a href="{% url 'entry_gate' %}">Entry Gate</a> | <a href="{% url 'exit_gate' %}">Exit Kiosk</a> | <a href="/admin/">Full Admin</a></p>
+
+<p><strong>Today's Revenue:</strong> Rs.{{ today_revenue_rupees }} &nbsp; | &nbsp;
+<strong>Active Sessions:</strong> {{ active_count }} / {{ total_slots }}</p>
+
+<h3>Live Slot Status</h3>
+<table border="1" cellpadding="8">
+  <tr><th>Slot</th><th>Zone</th><th>Type</th><th>Status</th></tr>
+  {% for slot in slots %}
+  <tr style="background-color: {% if slot.is_currently_occupied %}#fdd{% else %}#dfd{% endif %};">
+    <td>{{ slot.slot_id }}</td>
+    <td>{{ slot.zone_name }}</td>
+    <td>{{ slot.get_slot_type_display }}</td>
+    <td>{% if slot.is_currently_occupied %}Occupied{% else %}Free{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+
 <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Logout</button></form>
 {% endblock %}
