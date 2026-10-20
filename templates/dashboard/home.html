@@ -1,24 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Staff Dashboard</h2>
-<p>Welcome, {{ user.username }}.</p>
-<p><a href="{% url 'entry_gate' %}">Entry Gate</a> | <a href="{% url 'exit_gate' %}">Exit Kiosk</a> | <a href="/admin/">Full Admin</a></p>
+<h2>📊 Staff Dashboard</h2>
+<p>Welcome back, {{ user.username }}.</p>
 
-<p><strong>Today's Revenue:</strong> Rs.{{ today_revenue_rupees }} &nbsp; | &nbsp;
-<strong>Active Sessions:</strong> {{ active_count }} / {{ total_slots }}</p>
+<div class="topnav-links">
+  <a href="{% url 'entry_gate' %}">🚗 Entry Gate</a>
+  <a href="{% url 'exit_gate' %}">💳 Exit Kiosk</a>
+  <a href="/admin/">⚙️ Full Admin</a>
+</div>
 
-<h3>Live Slot Status</h3>
-<table border="1" cellpadding="8">
-  <tr><th>Slot</th><th>Zone</th><th>Type</th><th>Status</th></tr>
+<div style="display:flex; gap:16px; margin:24px 0;">
+  <div style="flex:1; background:#eef2ff; border-radius:10px; padding:18px; text-align:center;">
+    <div style="font-size:13px; color:var(--muted); font-weight:600;">TODAY'S REVENUE</div>
+    <div style="font-size:28px; font-weight:700; color:var(--primary);">₹{{ today_revenue_rupees }}</div>
+  </div>
+  <div style="flex:1; background:#f0fdf4; border-radius:10px; padding:18px; text-align:center;">
+    <div style="font-size:13px; color:var(--muted); font-weight:600;">ACTIVE SESSIONS</div>
+    <div style="font-size:28px; font-weight:700; color:var(--green);">{{ active_count }} / {{ total_slots }}</div>
+  </div>
+</div>
+
+<h3>🅿️ Live Slot Status</h3>
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:12px; margin-top:14px;">
   {% for slot in slots %}
-  <tr style="background-color: {% if slot.is_currently_occupied %}#fdd{% else %}#dfd{% endif %};">
-    <td>{{ slot.slot_id }}</td>
-    <td>{{ slot.zone_name }}</td>
-    <td>{{ slot.get_slot_type_display }}</td>
-    <td>{% if slot.is_currently_occupied %}Occupied{% else %}Free{% endif %}</td>
-  </tr>
+  <div style="border-radius:10px; padding:14px 10px; text-align:center; font-weight:700;
+    background:{% if slot.is_currently_occupied %}#fee2e2{% else %}#dcfce7{% endif %};
+    color:{% if slot.is_currently_occupied %}#991b1b{% else %}#166534{% endif %};
+    border:1px solid {% if slot.is_currently_occupied %}#fca5a5{% else %}#86efac{% endif %};">
+    <div style="font-size:16px;">{{ slot.slot_id }}</div>
+    <div style="font-size:11px; font-weight:500; margin-top:4px;">{{ slot.zone_name }}</div>
+    <div style="font-size:11px; margin-top:4px;">{% if slot.is_currently_occupied %}🔴 Occupied{% else %}🟢 Free{% endif %}</div>
+  </div>
   {% endfor %}
-</table>
+</div>
 
-<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Logout</button></form>
+<form method="post" action="{% url 'logout' %}" style="margin-top:32px;">
+  {% csrf_token %}
+  <button type="submit" style="background:var(--red);">Logout</button>
+</form>
 {% endblock %}

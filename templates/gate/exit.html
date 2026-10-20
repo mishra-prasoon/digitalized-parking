@@ -1,26 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Exit Kiosk</h2>
+<h2>💳 Exit Kiosk</h2>
 
-<div>
-  <video id="video" width="320" height="240" autoplay style="border:1px solid #333;"></video>
-  <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+<div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
+  <div>
+    <video id="video" width="340" height="255" autoplay style="border:2px solid var(--border); background:#111;"></video>
+    <canvas id="canvas" width="340" height="255" style="display:none;"></canvas>
+    <div style="margin-top:12px;">
+      <button id="captureBtn" type="button">📸 Capture from Camera</button>
+      <div style="margin-top:10px; font-size:13px; color:var(--muted);">or upload a photo instead:</div>
+      <input type="file" id="fileInput" accept="image/*" style="margin-top:6px;">
+    </div>
+  </div>
+
+  <div style="flex:1; min-width:260px;">
+    <div id="manualEntry" style="background:#f9fafb; border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:16px;">
+      <p style="margin:0 0 8px; font-weight:600;">Or enter plate manually:</p>
+      <input type="text" id="manualPlate" placeholder="e.g. UP65AB1234">
+      <br>
+      <button id="manualSubmit" type="button" style="margin-top:10px;">Scan for Exit</button>
+    </div>
+
+    <div id="result" style="background:#f9fafb; border:1px solid var(--border); border-radius:10px; padding:20px; min-height:60px; font-size:17px;">
+      Waiting for a vehicle...
+    </div>
+  </div>
 </div>
 
-<p>
-  <button id="captureBtn" type="button">Capture from Camera</button>
-  or
-  <input type="file" id="fileInput" accept="image/*">
-</p>
-
-<div id="manualEntry">
-  <input type="text" id="manualPlate" placeholder="e.g. UP65AB1234">
-  <button id="manualSubmit" type="button">Scan for Exit</button>
-</div>
-
-<div id="result" style="margin-top:1em; font-size:1.2em;"></div>
-
-<p><a href="{% url 'staff_dashboard' %}">Back to Dashboard</a></p>
+<p style="margin-top:28px;"><a href="{% url 'staff_dashboard' %}">← Back to Dashboard</a></p>
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
@@ -30,11 +37,12 @@ const RAZORPAY_KEY_ID = '{{ razorpay_key_id }}';
 navigator.mediaDevices.getUserMedia({ video: true })
   .then(s => { document.getElementById('video').srcObject = s; })
   .catch(err => {
-    document.getElementById('result').innerText = 'Camera unavailable: ' + err.message + ' (use file upload or manual entry)';
+    document.getElementById('result').innerText =
+      'Camera unavailable: ' + err.message + ' (use file upload or manual entry)';
   });
 
-function showMessage(text) {
-  document.getElementById('result').innerText = text;
+function showMessage(text, color) {
+  document.getElementById('result').innerHTML = '<span style="color:' + (color || 'inherit') + '; font-weight:600;">' + text + '</span>';
 }
 
 function openCheckout(scanData) {
@@ -60,19 +68,19 @@ function openCheckout(scanData) {
         .then(r => r.json())
         .then(data => {
           if (data.error) {
-            showMessage('Payment verification failed: ' + data.error);
+            showMessage('❌ Payment verification failed: ' + data.error, 'var(--red)');
           } else {
-            showMessage('Payment confirmed. Slot freed. Barrier opening...');
+            showMessage('✅ Payment confirmed. Slot freed. 🚧 Barrier opening...', 'var(--green)');
           }
         })
-        .catch(err => showMessage('Confirm request failed: ' + err));
+        .catch(err => showMessage('Confirm request failed: ' + err, 'var(--red)'));
     },
     modal: {
       ondismiss: function () {
-        showMessage('Payment cancelled. Please retry payment for plate ' + scanData.plate + '.');
+        showMessage('⚠️ Payment cancelled. Please retry payment for plate ' + scanData.plate + '.', '#9a3412');
       }
     },
-    theme: { color: '#3399cc' }
+    theme: { color: '#2563eb' }
   };
   const rzp = new Razorpay(options);
   rzp.open();
@@ -87,15 +95,15 @@ function sendScan(formData) {
     .then(r => r.json())
     .then(data => {
       if (data.error) {
-        showMessage('Error: ' + data.error + (data.plate ? ' (plate: ' + data.plate + ')' : ''));
+        showMessage('❌ Error: ' + data.error + (data.plate ? ' (plate: ' + data.plate + ')' : ''), 'var(--red)');
       } else if (!data.plate) {
         showMessage(data.message || 'No plate detected. Enter manually.');
       } else if (data.razorpay_order_id) {
-        showMessage('Plate: ' + data.plate + ' | Fee: Rs.' + data.fee + ' | Opening payment...');
+        showMessage('Plate: ' + data.plate + ' | Fee: ₹' + data.fee + ' | Opening payment...');
         openCheckout(data);
       }
     })
-    .catch(err => showMessage('Request failed: ' + err));
+    .catch(err => showMessage('Request failed: ' + err, 'var(--red)'));
 }
 
 document.getElementById('captureBtn').addEventListener('click', () => {

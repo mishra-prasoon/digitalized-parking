@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>My Bookings</h2>
-{% if messages %}<ul>{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
-<p><a href="{% url 'create_booking' %}">New booking</a></p>
-<table border="1" cellpadding="6">
+<h2>📋 My Bookings</h2>
+{% if messages %}
+  <div style="background:#f0fdf4; color:#166534; padding:10px 14px; border-radius:8px; font-size:14px; margin-bottom:16px;">
+    {% for m in messages %}{{ m }}{% endfor %}
+  </div>
+{% endif %}
+<p><a href="{% url 'create_booking' %}">➕ New Booking</a> &nbsp;|&nbsp; <a href="{% url 'user_portal' %}">← Back to Portal</a></p>
+
+<table>
   <tr><th>Slot</th><th>Vehicle</th><th>Start</th><th>End</th><th>Status</th><th></th></tr>
   {% for b in bookings %}
   <tr>
@@ -11,10 +16,20 @@
     <td>{{ b.vehicle_id }}</td>
     <td>{{ b.start_time }}</td>
     <td>{{ b.end_time }}</td>
-    <td>{{ b.get_status_display }}</td>
+    <td>
+      <span style="padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600;
+        {% if b.status == 'confirmed' %}background:#dbeafe; color:#1e40af;
+        {% elif b.status == 'cancelled' %}background:#fee2e2; color:#991b1b;
+        {% else %}background:#f3f4f6; color:#374151;{% endif %}">
+        {{ b.get_status_display }}
+      </span>
+    </td>
     <td>
       {% if b.status == 'confirmed' %}
-      <form method="post" action="{% url 'cancel_booking' b.pk %}">{% csrf_token %}<button type="submit">Cancel</button></form>
+      <form method="post" action="{% url 'cancel_booking' b.pk %}">
+        {% csrf_token %}
+        <button type="submit" style="background:var(--red); padding:6px 14px; font-size:12px;">Cancel</button>
+      </form>
       {% endif %}
     </td>
   </tr>

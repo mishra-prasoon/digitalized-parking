@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>🅿️ Available Slots</h2>
+<p>Step 2 of 2 — for vehicle <strong>{{ vehicle.plate }}</strong>, from
+  <strong>{{ start|date:"d M Y, H:i" }}</strong> to <strong>{{ end|date:"d M Y, H:i" }}</strong>.</p>
+
+{% if slots %}
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:12px; margin:20px 0;">
+    {% for slot in slots %}
+    <form method="post" action="{% url 'confirm_slot_booking' %}">
+      {% csrf_token %}
+      <input type="hidden" name="vehicle" value="{{ vehicle.plate }}">
+      <input type="hidden" name="slot" value="{{ slot.slot_id }}">
+      <input type="hidden" name="start" value="{{ start.isoformat }}">
+      <input type="hidden" name="end" value="{{ end.isoformat }}">
+      <button type="submit" style="width:100%; background:#f0fdf4; color:#166534; border:1px solid #86efac;
+        border-radius:10px; padding:16px 8px; font-size:14px; text-align:center;">
+        <div style="font-size:18px; font-weight:700;">{{ slot.slot_id }}</div>
+        <div style="font-size:11px; margin-top:4px;">{{ slot.zone_name }}</div>
+        <div style="font-size:11px; margin-top:2px; text-transform:capitalize;">{{ slot.slot_type }}</div>
+        <div style="margin-top:8px; font-weight:600;">✅ Proceed</div>
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+{% else %}
+  <div style="background:#fef2f2; color:#991b1b; padding:16px; border-radius:10px; margin:20px 0;">
+    😕 No slots are available for this time window. Please try a different time.
+  </div>
+{% endif %}
+
+<p><a href="{% url 'create_booking' %}">← Cancel / Choose a different time</a></p>
+{% endblock %}

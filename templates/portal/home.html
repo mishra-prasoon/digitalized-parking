@@ -1,7 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>User Portal</h2>
-<p>Welcome, {{ user.username }}.</p>
-<p><a href="{% url 'my_bookings' %}">My bookings</a> | <a href="{% url 'create_booking' %}">Book a slot</a></p>
-<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Logout</button></form>
+<h2>👋 Welcome, {{ user.username }}</h2>
+<p>Manage your vehicles, bookings, and parking history from here.</p>
+
+<div class="topnav-links">
+  <a href="{% url 'my_bookings' %}">📋 My Bookings</a>
+  <a href="{% url 'create_booking' %}">➕ Book a Slot</a>
+  <a href="{% url 'add_vehicle' %}">🚙 Add Vehicle</a>
+</div>
+
+<form method="post" action="{% url 'logout' %}" style="margin-top:24px;">
+  {% csrf_token %}
+  <button type="submit" style="background:var(--red);">Logout</button>
+</form>
 {% endblock %}

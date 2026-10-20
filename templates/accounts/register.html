@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Register</h2>
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Register</button>
-</form>
-<p><a href="{% url 'login' %}">Already have an account? Login</a></p>
+<div style="max-width:420px; margin:0 auto;">
+  <h2 style="text-align:center; border:none;">📝 Create an Account</h2>
+  <p style="text-align:center; margin-top:-8px;">Register to book parking slots in advance</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" style="width:100%;">Register</button>
+  </form>
+  <p style="text-align:center; margin-top:18px;">Already have an account? <a href="{% url 'login' %}">Login</a></p>
+</div>
 {% endblock %}

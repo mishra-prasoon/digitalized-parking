@@ -1,13 +1,31 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Book a Slot</h2>
-{% if form.non_field_errors %}
-  <ul>{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
-{% endif %}
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Book</button>
-</form>
-<p><a href="{% url 'my_bookings' %}">My bookings</a></p>
+<div style="max-width:460px; margin:0 auto;">
+  <h2>➕ Book a Slot</h2>
+  <p>Step 1 of 2 — choose your vehicle and the time you need the slot for.</p>
+
+  {% if messages %}
+    <div style="background:#fef2f2; color:#991b1b; padding:10px 14px; border-radius:8px; font-size:14px; margin-bottom:16px;">
+      {% for m in messages %}{{ m }}{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if not has_vehicle %}
+    <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:16px; margin-bottom:18px;">
+      <p style="margin:0; color:#9a3412;">You don't have any vehicle added yet.</p>
+      <a href="{% url 'add_vehicle' %}">➕ Add a vehicle first</a>
+    </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Check Availability →</button>
+  </form>
+
+  <p style="margin-top:18px;">
+    <a href="{% url 'add_vehicle' %}">➕ Add another vehicle</a> &nbsp;|&nbsp;
+    <a href="{% url 'user_portal' %}">← Back to Portal</a>
+  </p>
+</div>
 {% endblock %}

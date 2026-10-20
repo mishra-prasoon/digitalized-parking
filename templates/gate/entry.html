@@ -1,51 +1,57 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Entry Gate</h2>
+<h2>🚗 Entry Gate</h2>
 
-<div>
-  <video id="video" width="320" height="240" autoplay style="border:1px solid #333;"></video>
-  <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+<div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
+  <div>
+    <video id="video" width="340" height="255" autoplay style="border:2px solid var(--border); background:#111;"></video>
+    <canvas id="canvas" width="340" height="255" style="display:none;"></canvas>
+    <div style="margin-top:12px;">
+      <button id="captureBtn" type="button">📸 Capture from Camera</button>
+      <div style="margin-top:10px; font-size:13px; color:var(--muted);">or upload a photo instead:</div>
+      <input type="file" id="fileInput" accept="image/*" style="margin-top:6px;">
+    </div>
+  </div>
+
+  <div style="flex:1; min-width:260px;">
+    <div id="result" style="background:#f9fafb; border:1px solid var(--border); border-radius:10px; padding:20px; min-height:80px; font-size:17px;">
+      Waiting for a vehicle...
+    </div>
+
+    <div id="manualEntry" style="display:none; margin-top:16px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:16px;">
+      <p style="margin:0 0 8px; color:#9a3412; font-weight:600;">⚠️ No plate detected. Enter manually:</p>
+      <input type="text" id="manualPlate" placeholder="e.g. UP65AB1234">
+      <br>
+      <button id="manualSubmit" type="button" style="margin-top:10px;">Check In</button>
+    </div>
+  </div>
 </div>
 
-<p>
-  <button id="captureBtn" type="button">Capture from Camera</button>
-  or
-  <input type="file" id="fileInput" accept="image/*">
-</p>
+<p style="margin-top:28px;"><a href="{% url 'staff_dashboard' %}">← Back to Dashboard</a></p>
 
-<div id="result" style="margin-top:1em; font-size:1.2em;"></div>
-
-<div id="manualEntry" style="display:none; margin-top:1em;">
-  <p>No plate detected. Enter manually:</p>
-  <input type="text" id="manualPlate" placeholder="e.g. UP65AB1234">
-  <button id="manualSubmit" type="button">Check In</button>
-</div>
-
-<p><a href="{% url 'staff_dashboard' %}">Back to Dashboard</a></p>
 <script>
 const CSRF_TOKEN = '{{ csrf_token }}';
-let stream = null;
 
 navigator.mediaDevices.getUserMedia({ video: true })
-  .then(s => {
-    stream = s;
-    document.getElementById('video').srcObject = s;
-  })
+  .then(s => { document.getElementById('video').srcObject = s; })
   .catch(err => {
-    document.getElementById('result').innerText = 'Camera unavailable: ' + err.message + ' (use file upload instead)';
+    document.getElementById('result').innerText =
+      'Camera unavailable: ' + err.message + ' (use file upload instead)';
   });
 
 function showResult(data) {
   const el = document.getElementById('result');
   const manualBox = document.getElementById('manualEntry');
   if (data.error) {
-    el.innerText = 'Error: ' + data.error + (data.plate ? ' (plate: ' + data.plate + ')' : '');
+    el.innerHTML = '<span style="color:var(--red); font-weight:600;">❌ ' + data.error + '</span>' + (data.plate ? '<br><span style="color:var(--muted); font-size:14px;">Plate: ' + data.plate + '</span>' : '');
     manualBox.style.display = 'none';
   } else if (!data.plate) {
     el.innerText = data.message || 'No plate detected.';
     manualBox.style.display = 'block';
   } else if (data.slot_id) {
-    el.innerHTML = '<strong>Plate: ' + data.plate + '</strong><br>Slot assigned: <strong>' + data.slot_id + '</strong><br>Barrier opening...';
+    el.innerHTML = '<div style="color:var(--green); font-weight:700; font-size:20px;">✅ Plate: ' + data.plate + '</div>' +
+      '<div style="margin-top:8px;">Slot assigned: <strong style="font-size:22px; color:var(--primary);">' + data.slot_id + '</strong></div>' +
+      '<div style="margin-top:8px; color:var(--muted);">🚧 Barrier opening...</div>';
     manualBox.style.display = 'none';
   }
 }

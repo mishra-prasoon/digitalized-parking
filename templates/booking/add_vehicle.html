@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:420px; margin:0 auto;">
+  <h2>🚙 Add a Vehicle</h2>
+  <p>Add your car's number plate so you can book a slot for it.</p>
+  {% if messages %}
+    <div style="background:#f0fdf4; color:#166534; padding:10px 14px; border-radius:8px; font-size:14px; margin-bottom:16px;">
+      {% for m in messages %}{{ m }}{% endfor %}
+    </div>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Add Vehicle</button>
+  </form>
+  <p style="margin-top:18px;"><a href="{% url 'user_portal' %}">← Back</a></p>
+</div>
+{% endblock %}
