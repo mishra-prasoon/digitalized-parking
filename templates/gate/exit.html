@@ -45,6 +45,58 @@ function showMessage(text, color) {
   document.getElementById('result').innerHTML = '<span style="color:' + (color || 'inherit') + '; font-weight:600;">' + text + '</span>';
 }
 
+function showPaymentFallback(data) {
+  document.getElementById('result').innerHTML =
+    '<div style="color:#9a3412; font-weight:600;">⚠️ Online payment is unavailable right now.</div>' +
+    '<div style="margin-top:6px; color:var(--muted); font-size:13px;">' + (data.payment_error || '') + '</div>' +
+    '<div style="margin-top:14px;">Plate: <strong>' + data.plate + '</strong> &nbsp;|&nbsp; Fee: <strong>₹' + data.fee + '</strong></div>' +
+    '<div style="margin-top:14px;">' +
+    '<button id="retryPayBtn" type="button">🔁 Retry Online Payment</button> ' +
+    '<button id="payCashBtn" type="button" style="background:var(--green); margin-left:8px;">💵 Pay with Cash</button>' +
+    '</div>';
+
+  document.getElementById('retryPayBtn').addEventListener('click', () => {
+    const formData = new FormData();
+    formData.append('transaction_id', data.transaction_id);
+    fetch('{% url "exit_retry_payment" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: formData,
+    })
+      .then(r => r.json())
+      .then(retryData => {
+        if (retryData.payment_unavailable) {
+          showPaymentFallback(retryData);
+        } else if (retryData.razorpay_order_id) {
+          showMessage('Plate: ' + retryData.plate + ' | Fee: ₹' + retryData.fee + ' | Opening payment...');
+          openCheckout(retryData);
+        } else {
+          showMessage('❌ ' + (retryData.error || 'Retry failed'), 'var(--red)');
+        }
+      })
+      .catch(err => showMessage('Retry failed: ' + err, 'var(--red)'));
+  });
+
+  document.getElementById('payCashBtn').addEventListener('click', () => {
+    const formData = new FormData();
+    formData.append('transaction_id', data.transaction_id);
+    fetch('{% url "exit_confirm_cash" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: formData,
+    })
+      .then(r => r.json())
+      .then(resp => {
+        if (resp.error) {
+          showMessage('❌ ' + resp.error, 'var(--red)');
+        } else {
+          showMessage('✅ Cash payment recorded. Slot freed. 🚧 Barrier opening...', 'var(--green)');
+        }
+      })
+      .catch(err => showMessage('Request failed: ' + err, 'var(--red)'));
+  });
+}
+
 function openCheckout(scanData) {
   const options = {
     key: RAZORPAY_KEY_ID,
@@ -98,6 +150,8 @@ function sendScan(formData) {
         showMessage('❌ Error: ' + data.error + (data.plate ? ' (plate: ' + data.plate + ')' : ''), 'var(--red)');
       } else if (!data.plate) {
         showMessage(data.message || 'No plate detected. Enter manually.');
+      } else if (data.payment_unavailable) {
+        showPaymentFallback(data);
       } else if (data.razorpay_order_id) {
         showMessage('Plate: ' + data.plate + ' | Fee: ₹' + data.fee + ' | Opening payment...');
         openCheckout(data);

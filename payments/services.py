@@ -14,6 +14,25 @@ def _client():
     return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 
+def mark_paid_cash(transaction):
+    """Fallback when Razorpay is unavailable: record a cash payment and
+    close the transaction the same way a verified online payment would."""
+    if transaction.status == Transaction.Status.CLOSED:
+        return
+
+    amount_paise = int(transaction.fee * 100)
+    Payment.objects.update_or_create(
+        transaction=transaction,
+        defaults={
+            'razorpay_order_id': 'CASH',
+            'razorpay_payment_id': 'CASH',
+            'amount_paise': amount_paise,
+            'status': Payment.Status.PAID,
+        },
+    )
+    close_transaction(transaction)
+
+
 def create_order(transaction):
     if transaction.status != Transaction.Status.AWAITING_PAYMENT:
         raise PaymentError('Transaction is not awaiting payment.')

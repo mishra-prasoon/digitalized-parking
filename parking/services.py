@@ -7,7 +7,7 @@ from booking.models import Booking
 from .models import Tariff, Transaction
 
 EARLY_ENTRY_GRACE = timezone.timedelta(minutes=15)
-WALKIN_BUFFER = timezone.timedelta(minutes=60)
+WALKIN_BUFFER = timezone.timedelta(hours=24)
 
 
 class AllocationError(Exception):
@@ -33,7 +33,15 @@ def allocate_and_check_in(vehicle):
     booking = _matching_booking(vehicle, now)
 
     if booking:
+        # Pre-booked vehicle: go straight to its reserved slot, but guard
+        # against the slot somehow still being occupied by someone else.
         slot = ParkingSlot.objects.select_for_update().get(pk=booking.slot_id)
+        if Transaction.objects.filter(
+            slot=slot, status__in=[Transaction.Status.OPEN, Transaction.Status.AWAITING_PAYMENT]
+        ).exists():
+            raise AllocationError(
+                'Your reserved slot is currently occupied by another vehicle. Please contact staff.'
+            )
         booking.status = Booking.Status.COMPLETED
         booking.save(update_fields=['status'])
     else:

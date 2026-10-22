@@ -8,4 +8,6 @@ urlpatterns = [
     path('gate/exit/', views.exit_gate, name='exit_gate'),
     path('gate/exit/scan/', views.exit_scan, name='exit_scan'),
     path('gate/exit/confirm/', views.exit_confirm_payment, name='exit_confirm_payment'),
+    path('gate/exit/confirm-cash/', views.exit_confirm_cash, name='exit_confirm_cash'),
+    path('gate/exit/retry/', views.exit_retry_payment, name='exit_retry_payment'),
 ]

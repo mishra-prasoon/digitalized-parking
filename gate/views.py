@@ -9,7 +9,7 @@ from parking.services import allocate_and_check_in, check_out, AllocationError
 from parking.models import Transaction
 from anpr.pipeline import read_plate_from_bytes, vote_across_frames
 from anpr.models import ANPRLog
-from payments.services import create_order, verify_and_close, PaymentError
+from payments.services import create_order, verify_and_close, mark_paid_cash, PaymentError
 
 
 def entry_gate(request):
@@ -108,16 +108,76 @@ def exit_scan(request):
     except (Vehicle.DoesNotExist, AllocationError) as e:
         return JsonResponse({'plate': plate, 'error': str(e)}, status=409)
 
-    payment, order = create_order(txn)
+    try:
+        payment, order = create_order(txn)
+        return JsonResponse({
+            'plate': plate,
+            'transaction_id': txn.id,
+            'fee': str(txn.fee),
+            'razorpay_order_id': order['id'],
+            'amount_paise': payment.amount_paise,
+            'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+        })
+    except Exception as e:
+        # Razorpay unavailable/misconfigured: let the kiosk offer a cash fallback
+        # instead of crashing, so a live demo never gets stuck here.
+        return JsonResponse({
+            'plate': plate,
+            'transaction_id': txn.id,
+            'fee': str(txn.fee),
+            'payment_unavailable': True,
+            'payment_error': str(e),
+        })
 
-    return JsonResponse({
-        'plate': plate,
-        'transaction_id': txn.id,
-        'fee': str(txn.fee),
-        'razorpay_order_id': order['id'],
-        'amount_paise': payment.amount_paise,
-        'razorpay_key_id': settings.RAZORPAY_KEY_ID,
-    })
+
+@csrf_exempt
+def exit_retry_payment(request):
+    if not request.user.is_staff_member:
+        raise PermissionDenied
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    transaction_id = request.POST.get('transaction_id')
+    try:
+        txn = Transaction.objects.get(pk=transaction_id)
+    except Transaction.DoesNotExist:
+        return JsonResponse({'error': 'Transaction not found'}, status=404)
+
+    try:
+        payment, order = create_order(txn)
+        return JsonResponse({
+            'plate': txn.vehicle_id,
+            'transaction_id': txn.id,
+            'fee': str(txn.fee),
+            'razorpay_order_id': order['id'],
+            'amount_paise': payment.amount_paise,
+            'razorpay_key_id': settings.RAZORPAY_KEY_ID,
+        })
+    except Exception as e:
+        return JsonResponse({
+            'plate': txn.vehicle_id,
+            'transaction_id': txn.id,
+            'fee': str(txn.fee),
+            'payment_unavailable': True,
+            'payment_error': str(e),
+        })
+
+
+@csrf_exempt
+def exit_confirm_cash(request):
+    if not request.user.is_staff_member:
+        raise PermissionDenied
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    transaction_id = request.POST.get('transaction_id')
+    try:
+        txn = Transaction.objects.get(pk=transaction_id)
+    except Transaction.DoesNotExist:
+        return JsonResponse({'error': 'Transaction not found'}, status=404)
+
+    mark_paid_cash(txn)
+    return JsonResponse({'status': 'closed', 'transaction_id': txn.id})
 
 
 @csrf_exempt
