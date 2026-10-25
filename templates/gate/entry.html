@@ -18,6 +18,15 @@
       Waiting for a vehicle...
     </div>
 
+    <div id="confirmBox" style="display:none; margin-top:16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px;">
+      <p style="margin:0 0 10px; color:#1e40af; font-weight:600;">Confirm plate before opening the barrier:</p>
+      <input type="text" id="confirmPlate" style="font-size:18px; font-weight:700; letter-spacing:1px;">
+      <div style="margin-top:12px;">
+        <button id="confirmBtn" type="button" style="background:var(--green, #16a34a);">✅ Confirm &amp; Open Barrier</button>
+        <button id="retryBtn" type="button" style="margin-left:8px; background:var(--muted, #6b7280);">🔄 Retry</button>
+      </div>
+    </div>
+
     <div id="manualEntry" style="display:none; margin-top:16px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:16px;">
       <p style="margin:0 0 8px; color:#9a3412; font-weight:600;">⚠️ No plate detected. Enter manually:</p>
       <input type="text" id="manualPlate" placeholder="e.g. UP65AB1234">
@@ -39,33 +48,52 @@ navigator.mediaDevices.getUserMedia({ video: true })
       'Camera unavailable: ' + err.message + ' (use file upload instead)';
   });
 
-function showResult(data) {
+function showDetectResult(data) {
   const el = document.getElementById('result');
+  const confirmBox = document.getElementById('confirmBox');
   const manualBox = document.getElementById('manualEntry');
+
+  if (data.error) {
+    el.innerHTML = '<span style="color:var(--red); font-weight:600;">❌ ' + data.error + '</span>';
+    confirmBox.style.display = 'none';
+    manualBox.style.display = 'none';
+    return;
+  }
+  if (!data.plate) {
+    el.innerText = data.message || 'No plate detected.';
+    confirmBox.style.display = 'none';
+    manualBox.style.display = 'block';
+    return;
+  }
+  el.innerHTML = 'Detected plate (confidence: ' + Math.round(data.confidence) + '%) — please confirm below.';
+  document.getElementById('confirmPlate').value = data.plate;
+  confirmBox.style.display = 'block';
+  manualBox.style.display = 'none';
+}
+
+function showFinalResult(data) {
+  const el = document.getElementById('result');
+  document.getElementById('confirmBox').style.display = 'none';
+  document.getElementById('manualEntry').style.display = 'none';
   if (data.error) {
     el.innerHTML = '<span style="color:var(--red); font-weight:600;">❌ ' + data.error + '</span>' + (data.plate ? '<br><span style="color:var(--muted); font-size:14px;">Plate: ' + data.plate + '</span>' : '');
-    manualBox.style.display = 'none';
-  } else if (!data.plate) {
-    el.innerText = data.message || 'No plate detected.';
-    manualBox.style.display = 'block';
   } else if (data.slot_id) {
     el.innerHTML = '<div style="color:var(--green); font-weight:700; font-size:20px;">✅ Plate: ' + data.plate + '</div>' +
       '<div style="margin-top:8px;">Slot assigned: <strong style="font-size:22px; color:var(--primary);">' + data.slot_id + '</strong></div>' +
       '<div style="margin-top:8px; color:var(--muted);">🚧 Barrier opening...</div>';
-    manualBox.style.display = 'none';
   }
 }
 
-function sendImages(blobs) {
+function sendForDetection(blobs) {
   const formData = new FormData();
   blobs.forEach((b, i) => formData.append('images', b, 'frame' + i + '.jpg'));
-  fetch('{% url "entry_check_in" %}', {
+  fetch('{% url "entry_detect" %}', {
     method: 'POST',
     headers: { 'X-CSRFToken': CSRF_TOKEN },
     body: formData,
   })
     .then(r => r.json())
-    .then(showResult)
+    .then(showDetectResult)
     .catch(err => { document.getElementById('result').innerText = 'Request failed: ' + err; });
 }
 
@@ -84,7 +112,7 @@ document.getElementById('captureBtn').addEventListener('click', () => {
       if (count < 3) {
         setTimeout(grabFrame, 300);
       } else {
-        sendImages(blobs);
+        sendForDetection(blobs);
       }
     }, 'image/jpeg');
   }
@@ -93,7 +121,27 @@ document.getElementById('captureBtn').addEventListener('click', () => {
 
 document.getElementById('fileInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
-  if (file) sendImages([file]);
+  if (file) sendForDetection([file]);
+});
+
+document.getElementById('confirmBtn').addEventListener('click', () => {
+  const plate = document.getElementById('confirmPlate').value.trim();
+  if (!plate) return;
+  const formData = new FormData();
+  formData.append('manual_plate', plate);
+  fetch('{% url "entry_check_in" %}', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF_TOKEN },
+    body: formData,
+  })
+    .then(r => r.json())
+    .then(showFinalResult)
+    .catch(err => { document.getElementById('result').innerText = 'Request failed: ' + err; });
+});
+
+document.getElementById('retryBtn').addEventListener('click', () => {
+  document.getElementById('confirmBox').style.display = 'none';
+  document.getElementById('result').innerText = 'Waiting for a vehicle...';
 });
 
 document.getElementById('manualSubmit').addEventListener('click', () => {
@@ -107,7 +155,7 @@ document.getElementById('manualSubmit').addEventListener('click', () => {
     body: formData,
   })
     .then(r => r.json())
-    .then(showResult)
+    .then(showFinalResult)
     .catch(err => { document.getElementById('result').innerText = 'Request failed: ' + err; });
 });
 </script>

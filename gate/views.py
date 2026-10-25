@@ -203,3 +203,30 @@ def exit_confirm_payment(request):
         return JsonResponse({'error': str(e)}, status=400)
 
     return JsonResponse({'status': 'closed', 'transaction_id': txn.id})
+
+
+@csrf_exempt
+def entry_detect(request):
+    if not request.user.is_staff_member:
+        raise PermissionDenied
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    images = request.FILES.getlist('images')
+    if not images:
+        return JsonResponse({'error': 'No images provided'}, status=400)
+
+    results = [read_plate_from_bytes(f.read()) for f in images]
+    plate, confidence, raw_text = vote_across_frames(results)
+    ANPRLog.objects.create(
+        gate=ANPRLog.Gate.ENTRY,
+        raw_text=raw_text[:50],
+        accepted_plate=plate or '',
+        confidence=confidence,
+        success=bool(plate),
+    )
+
+    if not plate:
+        return JsonResponse({'plate': None, 'message': 'No plate detected. Enter manually.'})
+
+    return JsonResponse({'plate': plate, 'confidence': confidence})
